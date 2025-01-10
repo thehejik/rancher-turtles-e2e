@@ -44,6 +44,9 @@ on:
       azure_location:
         description: AZURE_LOCATION is required to create Azure cluster
         required: true
+      vsphere_secrets_json_base64:
+        description: VSPHERE_SECRETS_JSON_BASE64 is required to create vSphere cluster
+        required: true
     inputs:
       cert-manager_version:
         description: Version of cert-manager to use
@@ -106,8 +109,24 @@ on:
         type: string
 
 jobs:
-  create-runner:
+  determine-runner:
     runs-on: ubuntu-latest
+    outputs:
+      initial-runner: ${{ steps.set-runner.outputs.initial-runner }}
+    steps:
+      - name: Set Runner
+        id: set-runner
+        run: |
+          if [[ "${{ inputs.grep_test_by_tag }}" == *"@vsphere"* ]]; then
+            echo "initial-runner=vsphere" >> $GITHUB_OUTPUT
+          else
+            echo "initial-runner=ubuntu-latest" >> $GITHUB_OUTPUT
+          fi
+
+  create-runner:
+    # if: "!contains(github.event.inputs.grep_test_by_tag, '@vsphere')"
+    needs: determine-runner
+    runs-on: ${{ needs.determine-runner.outputs.initial-runner }}
     outputs:
       uuid: ${{ steps.generator.outputs.uuid }}
       runner: ${{ steps.generator.outputs.runner }}
@@ -119,24 +138,33 @@ jobs:
       - name: Generate UUID and Runner hostname
         id: generator
         run: |
-          # NOTE: keep the runner name to less than 63 characters!
-          UUID=$(uuidgen)
-          GH_REPO_FULL=${{ github.repository }}
-          GH_REPO=${GH_REPO_FULL#*/}
-          echo "uuid=${UUID//-}" >> ${GITHUB_OUTPUT}
-          echo "runner=${GH_REPO//\//-}-ci-${UUID//-}" >> ${GITHUB_OUTPUT}
+          if [[ ${{ needs.determine-runner.outputs.initial-runner }} == "vsphere" ]]; then
+            echo "uuid=vsphere" >> ${GITHUB_OUTPUT}
+            echo "runner=vsphere" >> ${GITHUB_OUTPUT}
+          else
+            # NOTE: keep the runner name to less than 63 characters!
+            UUID=$(uuidgen)
+            GH_REPO_FULL=${{ github.repository }}
+            GH_REPO=${GH_REPO_FULL#*/}
+            echo "uuid=${UUID//-}" >> ${GITHUB_OUTPUT}
+            echo "runner=${GH_REPO//\//-}-ci-${UUID//-}" >> ${GITHUB_OUTPUT}
+          fi
       - name: Authenticate to GCP
+        if: ${{ needs.determine-runner.outputs.initial-runner != 'vsphere' }}
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.gcp_credentials }}
       - name: Setup gcloud
+        if: ${{ needs.determine-runner.outputs.initial-runner != 'vsphere' }}
         uses: google-github-actions/setup-gcloud@v2
       - name: Create runner
+        if: ${{ needs.determine-runner.outputs.initial-runner != 'vsphere' }}
         run: |
           gcloud compute instances create ${{ steps.generator.outputs.runner }} \
             --source-instance-template ${{ inputs.runner_template }} \
             --zone ${{ inputs.zone }}
       - name: Create GCP secrets
+        if: ${{ needs.determine-runner.outputs.initial-runner != 'vsphere' }}
         run: |
           echo -n ${{ secrets.pat_token }} \
             | gcloud secrets create PAT_TOKEN_${{ steps.generator.outputs.uuid }} --ttl="36000s" --quiet --data-file=-
@@ -145,22 +173,33 @@ jobs:
       - name: Get public dns name in GCP
         id: dns
         run: |
-          for ((i=0; i<10; i++)); do
-            PUBLIC_IP=$(gcloud compute instances list --format="value(EXTERNAL_IP)" \
-              --filter="name=${{ steps.generator.outputs.runner }}" 2> /dev/null)
-            [[ -n "${PUBLIC_IP}" ]] && break
-            sleep 2
-          done
-          PUBLIC_DNS=$(dig -x ${PUBLIC_IP} +short 2> /dev/null | sed 's/\.$//')
-          echo "public_dns=${PUBLIC_DNS}" >> ${GITHUB_OUTPUT}
-          # Raise an error if either IP and/or DNS are empty
-          if [[ -z "${PUBLIC_IP}" || -z "${PUBLIC_DNS}" ]]; then
-            echo "PUBLIC_IP and/or PUBLIC_DNS are empty!" >&2
-            false
+          if [[ ${{ needs.determine-runner.outputs.initial-runner }} == "vsphere" ]]; then
+            LOCAL_IP=$(ip route get 8.8.8.8 | awk '{print $7}')
+            # Raise an error if IP is are empty
+            if [[ -z "${LOCAL_IP}" ]]; then
+              echo "LOCAL_IP is empty!" >&2
+              false
+            fi
+            echo "public_dns=${LOCAL_IP}.sslip.io" >> ${GITHUB_OUTPUT}
+          else
+            for ((i=0; i<10; i++)); do
+              PUBLIC_IP=$(gcloud compute instances list --format="value(EXTERNAL_IP)" \
+                --filter="name=${{ steps.generator.outputs.runner }}" 2> /dev/null)
+              [[ -n "${PUBLIC_IP}" ]] && break
+              sleep 2
+            done
+            PUBLIC_DNS=$(dig -x ${PUBLIC_IP} +short 2> /dev/null | sed 's/\.$//')
+            echo "public_dns=${PUBLIC_DNS}" >> ${GITHUB_OUTPUT}
+            # Raise an error if either IP and/or DNS are empty
+            if [[ -z "${PUBLIC_IP}" || -z "${PUBLIC_DNS}" ]]; then
+              echo "PUBLIC_IP and/or PUBLIC_DNS are empty!" >&2
+              false
+            fi
           fi
 
   pre-qase:
-    runs-on: ubuntu-latest
+    needs: determine-runner
+    runs-on: ${{ needs.determine-runner.outputs.initial-runner }}
     env:
       QASE_API_TOKEN: ${{ secrets.QASE_API_TOKEN }}
       QASE_PROJECT_CODE: RT
@@ -175,6 +214,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
+          cache: false
           cache-dependency-path: tests/go.sum
           go-version-file: tests/go.mod
       - name: Create/Export Qase Run
@@ -253,12 +293,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ${{ env.TURTLES_REPO }}
-      - name: Install Go
-        if: ${{ inputs.operator_dev_chart == true }}
-        uses: actions/setup-go@v5
-        with:
-          cache: false
-          go-version-file: go.mod
 
       # This step builds latest turtles chart and pushes latest turtles docker image to local docker registry
       - name: Set date variable
@@ -274,7 +308,7 @@ jobs:
 
       - name: Copy chart file
         if: ${{ inputs.operator_dev_chart == true }}
-        run: sudo cp ${{ github.workspace }}/out/package/rancher-turtles-${{ env.TAG }}.tgz ${{ runner.temp }}
+        run: cp ${{ github.workspace }}/out/package/rancher-turtles-${{ env.TAG }}.tgz ${{ runner.temp }}
 
       - name: Checkout
         uses: actions/checkout@v4
@@ -285,7 +319,7 @@ jobs:
           go-version-file: tests/go.mod
       - name: Copy chart file for chartmuseum
         if: ${{ inputs.operator_dev_chart == true }}
-        run: sudo cp ${{ runner.temp }}/rancher-turtles-${{ env.TAG }}.tgz ${{ github.workspace }}/tests/assets
+        run: cp ${{ runner.temp }}/rancher-turtles-${{ env.TAG }}.tgz ${{ github.workspace }}/tests/assets
       - name: Install Rancher Manager
         env:
           PUBLIC_DNS: ${{ needs.create-runner.outputs.public_dns }}
@@ -328,6 +362,7 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
           AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+          VSPHERE_SECRETS_JSON_BASE64: ${{ secrets.vsphere_secrets_json_base64 }}
           QASE_RUN_ID: ${{ needs.pre-qase.outputs.qase_run_id }}
           GREPTAGS: ${{ inputs.grep_test_by_tag }}
           TURTLES_OPERATOR_VERSION: ${{inputs.turtles_operator_version}}
@@ -341,6 +376,7 @@ jobs:
             e2e/unit_tests/capd_kubeadm_cluster.spec.ts
             e2e/unit_tests/capd_rke2_cluster.spec.ts
             e2e/unit_tests/capd_clusterclass_ui_cluster.spec.ts
+            e2e/unit_tests/capv_rke2_cluster.spec.ts
             e2e/unit_tests/capa_rke2_cluster.spec.ts
             e2e/unit_tests/capa_eks_cluster.spec.ts
             e2e/unit_tests/capz_cluster.spec.ts
@@ -397,7 +433,7 @@ jobs:
           echo "K3s on Rancher Manager: ${{ env.INSTALL_K3S_VERSION }}" >> ${GITHUB_STEP_SUMMARY}
 
   delete-runner:
-    if: ${{ always() }}
+    if: ${{ always() && needs.determine-runner.outputs.initial-runner != 'vsphere' }}
     needs: [create-runner, e2e]
     runs-on: ubuntu-latest
     steps:
@@ -424,7 +460,7 @@ jobs:
   post-qase:
     if: ${{ always() && needs.pre-qase.outputs.qase_run_id != '' }}
     needs: [e2e, pre-qase]
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.determine-runner.outputs.initial-runner }}
     env:
       QASE_API_TOKEN: ${{ secrets.qase_api_token }}
       QASE_PROJECT_CODE: RT
@@ -460,7 +496,35 @@ jobs:
   declare-cancelled:
     if: ${{ always() && contains(needs.e2e.result, 'cancelled') }}
     needs: e2e
-    runs-on: ubuntu-latest
+    runs-on: ${{ needs.determine-runner.outputs.initial-runner }}
     steps:
       - name: Specify in summary if something has been cancelled
         run: echo "# TEST CANCELLED!" >> ${GITHUB_STEP_SUMMARY}
+
+  cleanup-vsphere-runner:
+    if: ${{ always() && needs.determine-runner.outputs.initial-runner == 'vsphere' && inputs.destroy_runner == true }}
+    needs: [create-runner, e2e]
+    runs-on: vsphere
+    steps:
+      - name: Cleanup vsphere runner
+        run: |
+          # do not exit on failure
+          set +e
+          # uninstall chartmuseum
+          sudo systemctl stop chartmuseum
+          sudo rm /etc/systemd/system/chartmuseum.service
+          sudo systemctl daemon-reload
+          sudo rm /usr/local/bin/chartmuseum
+          sudo helm plugin uninstall cm-push
+          # delete registry container
+          # registry_id=$(docker ps -a -q -f name=registry)
+          # [ -n "${registry_id}" ] && docker stop $registry_id
+          # [ -n "${registry_id}" ] && docker rm $registry_id
+          # Stop all docker containers and remove everything
+          docker stop $(docker ps --all --quiet)
+          docker system prune --all --volumes --force
+          # destroy k3s cluster
+          /usr/local/bin/k3s-killall.sh
+          /usr/local/bin/k3s-uninstall.sh
+          # Delete all files in the workspace
+          [ -n "${{ github.workspace }}" ] && rm -r "${{ github.workspace }}"/*
