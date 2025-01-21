@@ -120,7 +120,7 @@ jobs:
           else
             echo "initial-runner=ubuntu-latest" >> $GITHUB_OUTPUT
           fi
-      
+
   create-runner:
     # if: "!contains(github.event.inputs.grep_test_by_tag, '@vsphere')"
     needs: determine-runner
@@ -208,7 +208,6 @@ jobs:
         with:
           cache-dependency-path: tests/go.sum
           go-version-file: tests/go.mod
-          cache: true
       - name: Create/Export Qase Run
         id: qase
         env:
@@ -307,9 +306,8 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          cache-dependency-path: tests/go.sum
+          cache: false
           go-version-file: tests/go.mod
-          cache: true
       - name: Copy chart file for chartmuseum
         if: ${{ inputs.operator_dev_chart == true }}
         run: cp ${{ runner.temp }}/rancher-turtles-${{ env.TAG }}.tgz ${{ github.workspace }}/tests/assets
