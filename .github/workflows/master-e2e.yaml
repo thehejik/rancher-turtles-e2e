@@ -206,7 +206,9 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
+          cache-dependency-path: tests/go.sum
           go-version-file: tests/go.mod
+          cache: true
       - name: Create/Export Qase Run
         id: qase
         env:
@@ -288,6 +290,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
+          cache: true
 
       # This step builds latest turtles chart and pushes latest turtles docker image to local docker registry
       - name: Set date variable
@@ -312,6 +315,7 @@ jobs:
         with:
           cache-dependency-path: tests/go.sum
           go-version-file: tests/go.mod
+          cache: true
       - name: Copy chart file for chartmuseum
         if: ${{ inputs.operator_dev_chart == true }}
         run: cp ${{ runner.temp }}/rancher-turtles-${{ env.TAG }}.tgz ${{ github.workspace }}/tests/assets
@@ -512,7 +516,7 @@ jobs:
           # registry_id=$(docker ps -a -q -f name=registry)
           # [ -n "${registry_id}" ] && docker stop $registry_id
           # [ -n "${registry_id}" ] && docker rm $registry_id
-          # Stop all docker containers
+          # Stop all docker containers and remove everything
           docker stop $(docker ps --all --quiet)
           docker system prune --all --volumes --force
           # destroy k3s cluster
