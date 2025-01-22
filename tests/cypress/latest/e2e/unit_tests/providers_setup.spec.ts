@@ -24,10 +24,12 @@ describe('Enable CAPI Providers', () => {
   const googleProvider = 'gcp'
   const azureProvider = 'azure'
   const fleetProvider = 'fleet'
+  const vsphereProvider = 'vsphere'
   const kubeadmProviderVersion = 'v1.9.4'
   const kubeadmBaseURL = 'https://github.com/kubernetes-sigs/cluster-api/releases/'
   const kubeadmProviderTypes = ['bootstrap', 'control plane']
   const providerNamespaces = ['capi-kubeadm-bootstrap-system', 'capi-kubeadm-control-plane-system', 'capd-system', 'capa-system', 'capg-system', 'capz-system']
+  const vsphereProviderNamespace = 'capv-system'
 
   beforeEach(() => {
     cy.login();
@@ -94,6 +96,24 @@ describe('Enable CAPI Providers', () => {
       cy.contains(statusReady).scrollIntoView();
     });
   });
+
+context('vSphere provider', { tags: '@vsphere' }, () => {
+    it('Create CAPI Providers Namespace - ' + vsphereProviderNamespace, () => {
+      cy.createNamespace(vsphereProviderNamespace);
+    })
+    qase(40,
+      it('Create CAPV provider', () => {
+        // Create vsphere Infrastructure provider
+        cy.addCloudCredsVMware(vsphereProvider, Cypress.env('vmware_username'), Cypress.env('vmware_password'), Cypress.env('vmware_server'), '443');
+        cypressLib.burgerMenuToggle();
+        //cy.addInfraProvider('Amazon', amazonProvider, 'capa-system', amazonProvider);
+        //var statusReady = 'Ready'
+        //statusReady = statusReady.concat(amazonProvider, 'infrastructure', amazonProvider, 'v2.6.1')
+        //cy.contains(statusReady);
+      })
+    );
+
+})
 
   context('Cloud Providers', { tags: '@full' }, () => {
     qase(13,
