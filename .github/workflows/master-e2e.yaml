@@ -515,4 +515,5 @@ jobs:
           # destroy k3s cluster
           /usr/local/bin/k3s-killall.sh
           /usr/local/bin/k3s-uninstall.sh
-          rm -r ${{github.workspace}}/*
+          # Delete all files in the workspace
+          [ -n "${{ github.workspace }}" ] && rm -r "${{ github.workspace }}"/*
