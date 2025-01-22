@@ -206,6 +206,7 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
+          cache: false
           cache-dependency-path: tests/go.sum
           go-version-file: tests/go.mod
       - name: Create/Export Qase Run
@@ -514,3 +515,4 @@ jobs:
           # destroy k3s cluster
           /usr/local/bin/k3s-killall.sh
           /usr/local/bin/k3s-uninstall.sh
+          rm -r ${{github.workspace}}/*
