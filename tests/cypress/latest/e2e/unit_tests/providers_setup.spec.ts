@@ -106,10 +106,10 @@ context('vSphere provider', { tags: '@vsphere' }, () => {
         // Create vsphere Infrastructure provider
         cy.addCloudCredsVMware(vsphereProvider, Cypress.env('vmware_username'), Cypress.env('vmware_password'), Cypress.env('vmware_server'), '443');
         cypressLib.burgerMenuToggle();
-        //cy.addInfraProvider('Amazon', amazonProvider, 'capa-system', amazonProvider);
-        //var statusReady = 'Ready'
-        //statusReady = statusReady.concat(amazonProvider, 'infrastructure', amazonProvider, 'v2.6.1')
-        //cy.contains(statusReady);
+        cy.addInfraProvider('vsphere', vsphereProvider, vsphereProviderNamespace, vsphereProvider);
+        var statusReady = 'Ready'
+        statusReady = statusReady.concat(vsphereProvider, 'infrastructure', vsphereProvider, 'v1.11.3')
+        cy.contains(statusReady);
       })
     );
 
