@@ -44,14 +44,14 @@ on:
       azure_location:
         description: AZURE_LOCATION is required to create Azure cluster
         required: true
-      vsphere_username:
-        description: VSPHERE_USERNAME is required to create vSphere cluster
+      vmware_username:
+        description: VMWARE_USERNAME is required to create vSphere cluster
         required: true
-      vsphere_password:
-        description: VSPHERE_PASSWORD is required to create vSphere cluster
+      vmware_password:
+        description: VMWARE_PASSWORD is required to create vSphere cluster
         required: true
-      vsphere_server:
-        description: VSPHERE_SERVER is required to create vSphere cluster
+      vmware_server:
+        description: VMWARE_SERVER is required to create vSphere cluster
         required: true
     inputs:
       cert-manager_version:
