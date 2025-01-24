@@ -47,9 +47,9 @@ jobs:
       azure_location: ${{ secrets.AZURE_LOCATION }}
       qase_api_token: ${{ secrets.QASE_API_TOKEN }}
       rancher_password: ${{ secrets.RANCHER_PASSWORD }}
-      vmware_username: ${{ secrets.VMWARE_USERNAME }}
-      vmware_password: ${{ secrets.VMWARE_PASSWORD }}
-      vmware_server: ${{ secrets.VMWARE_SERVER }}
+      vsphere_username: ${{ secrets.VSPHERE_USERNAME }}
+      vsphere_password: ${{ secrets.VSPHERE_PASSWORD }}
+      vsphere_server: ${{ secrets.VSPHERE_SERVER }}
     with:
       test_description: "CI/Manual - UI - Deployment test with Standard K3s"
       cluster_name: cluster-k3s

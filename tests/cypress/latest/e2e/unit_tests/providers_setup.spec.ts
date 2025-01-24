@@ -104,7 +104,7 @@ context('vSphere provider', { tags: '@vsphere' }, () => {
     qase(40,
       it('Create CAPV provider', () => {
         // Create vsphere Infrastructure provider
-        cy.addCloudCredsVMware(vsphereProvider, Cypress.env('vmware_username'), Cypress.env('vmware_password'), Cypress.env('vmware_server'), '443');
+        cy.addCloudCredsVMware(vsphereProvider, Cypress.env('vsphere_username'), Cypress.env('vsphere_password'), Cypress.env('vsphere_server'), '443');
         cypressLib.burgerMenuToggle();
         cy.addInfraProvider('vsphere', vsphereProvider, vsphereProviderNamespace, vsphereProvider);
         var statusReady = 'Ready'

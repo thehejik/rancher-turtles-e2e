@@ -44,14 +44,14 @@ on:
       azure_location:
         description: AZURE_LOCATION is required to create Azure cluster
         required: true
-      vmware_username:
-        description: VMWARE_USERNAME is required to create vSphere cluster
+      vsphere_username:
+        description: VSPHERE_USERNAME is required to create vSphere cluster
         required: true
-      vmware_password:
-        description: VMWARE_PASSWORD is required to create vSphere cluster
+      vsphere_password:
+        description: VSPHERE_PASSWORD is required to create vSphere cluster
         required: true
-      vmware_server:
-        description: VMWARE_SERVER is required to create vSphere cluster
+      vsphere_server:
+        description: VSPHERE_SERVER is required to create vSphere cluster
         required: true
     inputs:
       cert-manager_version:
@@ -364,9 +364,9 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
           AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
-          VMWARE_SERVER: ${{ secrets.vmware_server }}
-          VMWARE_USERNAME: ${{ secrets.vmware_username }}
-          VMWARE_PASSWORD: ${{ secrets.vmware_password }}
+          VSPHERE_SERVER: ${{ secrets.vsphere_server }}
+          VSPHERE_USERNAME: ${{ secrets.vsphere_username }}
+          VSPHERE_PASSWORD: ${{ secrets.vsphere_password }}
           QASE_RUN_ID: ${{ needs.pre-qase.outputs.qase_run_id }}
           GREPTAGS: ${{ inputs.grep_test_by_tag }}
           TURTLES_OPERATOR_VERSION: ${{inputs.turtles_operator_version}}
