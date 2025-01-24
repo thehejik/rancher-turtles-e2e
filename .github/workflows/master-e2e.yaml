@@ -364,6 +364,9 @@ jobs:
           AZURE_TENANT_ID: ${{ secrets.azure_tenant_id }}
           AZURE_SUBSCRIPTION_ID: ${{ secrets.azure_subscription_id }}
           AZURE_LOCATION: ${{ secrets.AZURE_LOCATION }}
+          VMWARE_SERVER: ${{ secrets.vmware_server }}
+          VMWARE_USERNAME: ${{ secrets.vmware_username }}
+          VMWARE_PASSWORD: ${{ secrets.vmware_password }}
           QASE_RUN_ID: ${{ needs.pre-qase.outputs.qase_run_id }}
           GREPTAGS: ${{ inputs.grep_test_by_tag }}
           TURTLES_OPERATOR_VERSION: ${{inputs.turtles_operator_version}}
