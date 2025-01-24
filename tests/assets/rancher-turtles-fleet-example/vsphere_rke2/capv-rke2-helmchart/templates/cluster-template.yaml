@@ -1,11 +1,11 @@
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
-kind: Cluster 
+kind: Cluster
 metadata:
-  namespace: "{{ .Values.cluster.namespace }}"
-  name: "{{ .Values.cluster.name }}"
+  namespace: {{ .Values.cluster.namespace }}
+  name: {{ .Values.cluster.name }}
   labels:
-    cluster.x-k8s.io/cluster-name: "{{ .Values.cluster.name }}"
+    cluster.x-k8s.io/cluster-name: {{ .Values.cluster.name }}
   annotations:
     "helm.sh/resource-policy": keep
 spec:
@@ -17,34 +17,34 @@ spec:
   controlPlaneRef:
     apiVersion: controlplane.cluster.x-k8s.io/v1beta1
     kind: RKE2ControlPlane
-    name: "{{ .Values.cluster.name }}"
+    name: {{ .Values.cluster.name }}
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: VSphereCluster
-    name: "{{ .Values.cluster.name }}"
+    name: {{ .Values.cluster.name }}
 ---
 apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VSphereCluster
 metadata:
-  name: "{{ .Values.cluster.name }}"
-  namespace: "{{ .Values.cluster.namespace }}"
+  name: {{ .Values.cluster.name }}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 spec:
   controlPlaneEndpoint:
-    host: ${CONTROL_PLANE_ENDPOINT_IP}
+    host: {{ .Values.cluster.control_plane_endpoint_ip }}
     port: 6443
   identityRef:
     kind: Secret
-    name: ${CLUSTER_NAME}
-  server: ${VSPHERE_SERVER}
-  thumbprint: ${VSPHERE_TLS_THUMBPRINT}
+    name: {{ .Values.cluster.name }}
+  server: {{ .Values.vsphere.server }}
+  thumbprint: {{ .Values.vsphere.tls_thumbprint }}
 ---
 apiVersion: controlplane.cluster.x-k8s.io/v1beta1 
 kind: RKE2ControlPlane
 metadata:
-  name: ${CLUSTER_NAME}
-  namespace: ${NAMESPACE}
+  name: {{ .Values.cluster.name }}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 spec:
@@ -125,7 +125,7 @@ spec:
             - name: vip_interface
               value: eth0
             - name: address
-              value: ${CONTROL_PLANE_ENDPOINT_IP}
+              value: {{ .Values.cluster.control_plane_endpoint_ip }}
             - name: port
               value: "6443"
             - name: vip_arp
@@ -161,7 +161,7 @@ spec:
               path: /etc/rancher/rke2/rke2.yaml
               type: File
             name: kubeconfig
-  replicas: ${CONTROL_PLANE_MACHINE_COUNT}
+  replicas: {{ .Values.cluster.control_plane_machine_count }}
   infrastructureRef:
     apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
     kind: VSphereMachineTemplate
@@ -169,7 +169,7 @@ spec:
   nodeDrainTimeout: 2m
   preRKE2Commands:
     - sleep 30 #fix to give OS time to become ready
-  version: ${RKE2_VERSION}
+  version: {{ .Values.cluster.rke2_version }}
   agentConfig:
     additionalUserData:
       config: |
@@ -177,7 +177,7 @@ spec:
           - name: capv
             sudo: ALL=(ALL) NOPASSWD:ALL
             ssh-authorized-keys:
-              - '${VSPHERE_SSH_AUTHORIZED_KEY}'     
+              - {{ .Values.vsphere.ssh_authorized_key | quote }}
     kubelet:
       extraArgs:
       - --cloud-provider=external
@@ -191,67 +191,67 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VSphereMachineTemplate
 metadata:
   name: vsphere-controlplane
-  namespace: ${NAMESPACE}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 spec:
   template:
     spec:
       cloneMode: linkedClone
-      datacenter: ${VSPHERE_DATACENTER}
-      datastore: ${VSPHERE_DATASTORE}
+      datacenter: {{ .Values.vsphere.datacenter }}
+      datastore: {{ .Values.vsphere.datastore }}
       diskGiB: 25
-      folder: ${VSPHERE_FOLDER}
+      folder: {{ .Values.vsphere.folder }}
       memoryMiB: 8192
       network:
         devices:
         - dhcp4: true
-          networkName: ${VSPHERE_NETWORK}
+          networkName: {{ .Values.vsphere.network }}
       numCPUs: 2
       os: Linux
-      resourcePool: "${VSPHERE_RESOURCE_POOL}"
-      server: ${VSPHERE_SERVER}
+      resourcePool: { .Values.vsphere.resource_pool | quote }}
+      server: {{ .Values.vsphere.server }}
       storagePolicyName: ""
-      template: ${VSPHERE_TEMPLATE}
-      thumbprint: ${VSPHERE_TLS_THUMBPRINT}
+      template: {{ .Values.vsphere.template }}
+      thumbprint: {{ .Values.vsphere.tls_thumbprint }}
 ---
 apiVersion: cluster.x-k8s.io/v1beta1
 kind: MachineDeployment
 metadata:
   labels:
-    cluster.x-k8s.io/cluster-name: ${NAMESPACE}
+    cluster.x-k8s.io/cluster-name: {{ .Values.cluster.name }}
   name: worker-md-0
-  namespace: ${NAMESPACE}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 spec:
-  clusterName: ${CLUSTER_NAME}
-  replicas: ${WORKER_MACHINE_COUNT}
+  clusterName: {{ .Values.cluster.name }}
+  replicas: {{ .Values.cluster.worker_machine_count }}
   selector:
     matchLabels: {}
   template:
     metadata:
       labels:
-        cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+        cluster.x-k8s.io/cluster-name: {{ .Values.cluster.name }}
     spec:
-      version: ${RKE2_VERSION}
-      clusterName: ${CLUSTER_NAME}
+      version: {{ .Values.cluster.rke2_version }}
+      clusterName: {{ .Values.cluster.name }}
       bootstrap:
         configRef:
           apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
           kind: RKE2ConfigTemplate
           name: rke2-agent
-          namespace: ${NAMESPACE}
+          namespace: {{ .Values.cluster.namespace }}
       infrastructureRef:
         apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
         kind: VSphereMachineTemplate
         name: vsphere-worker
-        namespace: ${NAMESPACE}
+        namespace: {{ .Values.cluster.namespace }}
 ---
 apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: RKE2ConfigTemplate
 metadata:
-  namespace: ${NAMESPACE}
+  namespace: {{ .Values.cluster.namespace }}
   name: rke2-agent
   annotations:
     "helm.sh/resource-policy": keep
@@ -269,43 +269,43 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta1
 kind: VSphereMachineTemplate
 metadata:
   name: vsphere-worker
-  namespace: ${NAMESPACE}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 spec:
   template:
     spec:
       cloneMode: linkedClone
-      datacenter: ${VSPHERE_DATACENTER}
-      datastore: ${VSPHERE_DATASTORE}
+      datacenter: {{ .Values.vsphere.datacenter }}
+      datastore: {{ .Values.vsphere.datastore }}
       diskGiB: 25
-      folder: ${VSPHERE_FOLDER}
+      folder: {{ .Values.vsphere.folder }}
       memoryMiB: 8192
       network:
         devices:
         - dhcp4: true
-          networkName: ${VSPHERE_NETWORK}
+          networkName: {{ .Values.vsphere.network }}
       numCPUs: 2
       os: Linux
-      resourcePool: "${VSPHERE_RESOURCE_POOL}"
-      server: ${VSPHERE_SERVER}
+      resourcePool: {{ .Values.vsphere.resource_pool | quote }}
+      server: {{ .Values.vsphere.server }}
       storagePolicyName: ""
-      template: ${VSPHERE_TEMPLATE}
-      thumbprint: ${VSPHERE_TLS_THUMBPRINT}
+      template: {{ .Values.vsphere.template }}
+      thumbprint: {{ .Values.vsphere.tls_thumbprint }}
 ---
 apiVersion: addons.cluster.x-k8s.io/v1beta1
 kind: ClusterResourceSet
 metadata:
   labels:
-    cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
-  name: ${CLUSTER_NAME}-crs-0
-  namespace: ${NAMESPACE}
+    cluster.x-k8s.io/cluster-name: {{ .Values.cluster.name }}
+  name: {{ .Values.cluster.name }}-crs-0
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 spec:
   clusterSelector:
     matchLabels:
-      cluster.x-k8s.io/cluster-name: ${CLUSTER_NAME}
+      cluster.x-k8s.io/cluster-name: {{ .Values.cluster.name }}
   resources:
   - kind: Secret
     name: vsphere-config-secret
@@ -319,17 +319,17 @@ spec:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: ${CLUSTER_NAME}
-  namespace: ${NAMESPACE}
+  name: {{ .Values.cluster.name }}
+  namespace: {{ .Values.cluster.namespace }}
 stringData:
-  password: "${VSPHERE_PASSWORD}"
-  username: "${VSPHERE_USERNAME}"
+  password: {{ .Values.vsphere.password }}
+  username: {{ .Values.vsphere.username }}
 ---
 apiVersion: v1
 kind: Secret
 metadata:
   name: vsphere-config-secret
-  namespace: ${NAMESPACE}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 stringData:
@@ -342,15 +342,15 @@ stringData:
     stringData:
       csi-vsphere.conf: |+
         [Global]
-        thumbprint = "${VSPHERE_TLS_THUMBPRINT}"
+        thumbprint = {{ .Values.vsphere.tls_thumbprint | quote }}
 
-        [VirtualCenter "${VSPHERE_SERVER}"]
-        user = "${VSPHERE_USERNAME}"
-        password = "${VSPHERE_PASSWORD}"
-        datacenters = "${VSPHERE_DATACENTER}"
+        [VirtualCenter {{ .Values.vsphere.server | quote }}]
+        user = {{ .Values.vsphere.username | quote }}
+        password = {{ .Values.vsphere.password | quote }}
+        datacenters = {{ .Values.vsphere.datacenter | quote }}
 
         [Network]
-        public-network = "${VSPHERE_NETWORK}"
+        public-network = {{ .Values.vsphere.network | quote }}
 
     type: Opaque
 type: addons.cluster.x-k8s.io/resource-set
@@ -1202,7 +1202,7 @@ data:
 kind: ConfigMap
 metadata:
   name: csi-manifests
-  namespace: ${NAMESPACE}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 ---
@@ -1210,7 +1210,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: cloud-provider-vsphere-credentials
-  namespace: ${NAMESPACE}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
 stringData:
@@ -1224,8 +1224,8 @@ stringData:
       name: cloud-provider-vsphere-credentials
       namespace: kube-system
     stringData:
-      ${VSPHERE_SERVER}.password: "${VSPHERE_PASSWORD}"
-      ${VSPHERE_SERVER}.username: "${VSPHERE_USERNAME}"
+      {{ .Values.vsphere.server }}.password: {{ .Values.vsphere.password | quote }}
+      {{ .Values.vsphere.server }}.username: {{ .Values.vsphere.username | quote }}
     type: Opaque
 type: addons.cluster.x-k8s.io/resource-set
 ---
@@ -1393,7 +1393,7 @@ data:
           priorityClassName: system-node-critical
           containers:
           - name: vsphere-cpi
-            image: registry.k8s.io/cloud-pv-vsphere/cloud-provider-vsphere:${CPI_IMAGE_K8S_VERSION}
+            image: registry.k8s.io/cloud-pv-vsphere/cloud-provider-vsphere:{{ .Values.cluster.cpi_image_k8s_version }}
             imagePullPolicy: IfNotPresent
             args:
               - --cloud-provider=vsphere
@@ -1456,12 +1456,12 @@ data:
           port: 443
           secretName: cloud-provider-vsphere-credentials
           secretNamespace: kube-system
-          thumbprint: '${VSPHERE_TLS_THUMBPRINT}'
+          thumbprint: {{ .Values.vsphere.tls_thumbprint | quote }}
         vcenter:
-          ${VSPHERE_SERVER}:
+          {{ .Values.vsphere.server }}:
             datacenters:
-            - '${VSPHERE_DATACENTER}'
-            server: '${VSPHERE_SERVER}'
+            - {{ .Values.vsphere.datacenter | quote }}
+            server: {{ .Values.vsphere.server | quote }}
     kind: ConfigMap
     metadata:
       name: cloud-config
@@ -1469,6 +1469,6 @@ data:
 kind: ConfigMap
 metadata:
   name: cpi-manifests
-  namespace: ${NAMESPACE}
+  namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
