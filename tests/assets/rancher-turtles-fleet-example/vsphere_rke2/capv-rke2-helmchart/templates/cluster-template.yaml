@@ -209,7 +209,7 @@ spec:
           networkName: {{ .Values.vsphere.network }}
       numCPUs: 2
       os: Linux
-      resourcePool: { .Values.vsphere.resource_pool | quote }}
+      resourcePool: {{ .Values.vsphere.resource_pool | quote }}
       server: {{ .Values.vsphere.server }}
       storagePolicyName: ""
       template: {{ .Values.vsphere.template }}
@@ -220,7 +220,7 @@ kind: MachineDeployment
 metadata:
   labels:
     cluster.x-k8s.io/cluster-name: {{ .Values.cluster.name }}
-  name: worker-md-0
+  name: {{ .Values.cluster.name }}-worker-md-0
   namespace: {{ .Values.cluster.namespace }}
   annotations:
     "helm.sh/resource-policy": keep
