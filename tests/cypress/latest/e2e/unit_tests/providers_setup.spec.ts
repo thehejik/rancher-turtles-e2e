@@ -108,7 +108,7 @@ context('vSphere provider', { tags: '@vsphere' }, () => {
         cypressLib.burgerMenuToggle();
         cy.addInfraProvider('vsphere', vsphereProvider, vsphereProviderNamespace, vsphereProvider);
         var statusReady = 'Ready'
-        statusReady = statusReady.concat(vsphereProvider, 'infrastructure', vsphereProvider, 'v1.11.3')
+        statusReady = statusReady.concat(vsphereProvider, 'infrastructure', vsphereProvider, 'v1.12.0')
         cy.contains(statusReady);
       })
     );
