@@ -1,9 +1,9 @@
 namespace: default
 
 helm:
-  chart: ./azure-capz-helmchart
+  chart: ./capv-rke2-helmchart
   valuesFrom:
     - secretKeyRef:
-        name: azure-creds-secret
+        name: capv-helm-values
         namespace: default
         key: values.yaml

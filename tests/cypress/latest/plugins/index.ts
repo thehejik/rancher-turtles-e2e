@@ -52,6 +52,7 @@ module.exports = (on: Cypress.PluginEvents, config: Cypress.PluginConfigOptions)
   config.env.vsphere_username = process.env.VSPHERE_USERNAME
   config.env.vsphere_password = process.env.VSPHERE_PASSWORD
   config.env.vsphere_server = process.env.VSPHERE_SERVER
+  config.env.vsphere_secrets_json_base64 = process.env.VSPHERE_SECRETS_JSON_BASE64
 
   config.env.grep = process.env.GREP;
   config.env.grepTags = process.env.GREPTAGS;

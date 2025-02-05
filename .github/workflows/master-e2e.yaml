@@ -53,6 +53,9 @@ on:
       vsphere_server:
         description: VSPHERE_SERVER is required to create vSphere cluster
         required: true
+      vsphere_secrets_json_base64:
+        description: VSPHERE_SECRETS_JSON_BASE64 is required to create vSphere cluster
+        required: true
     inputs:
       cert-manager_version:
         description: Version of cert-manager to use
