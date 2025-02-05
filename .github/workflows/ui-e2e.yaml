@@ -50,6 +50,7 @@ jobs:
       vsphere_username: ${{ secrets.VSPHERE_USERNAME }}
       vsphere_password: ${{ secrets.VSPHERE_PASSWORD }}
       vsphere_server: ${{ secrets.VSPHERE_SERVER }}
+      vsphere_secrets_json_base64: ${{ secrets.VSPHERE_SECRETS_JSON_BASE64 }}
     with:
       test_description: "CI/Manual - UI - Deployment test with Standard K3s"
       cluster_name: cluster-k3s
