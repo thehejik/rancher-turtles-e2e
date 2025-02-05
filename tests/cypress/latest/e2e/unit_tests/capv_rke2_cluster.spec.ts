@@ -6,7 +6,7 @@ Cypress.config();
 describe('Import CAPV', { tags: '@vsphere' }, () => {
   const timeout = 1200000
   const repoName = 'clusters-capv'
-  const clusterName = "turtles-qa-capv"
+  const clusterName = "turtles-qa-capv-rke2"
   const branch = 'vsphere' // CHANGE THIS TO 'main' WHEN THE BRANCH IS MERGED
   const path = '/tests/assets/rancher-turtles-fleet-example/vsphere_rke2'
   const repoUrl = "https://github.com/thehejik/rancher-turtles-e2e.git" // CHANGE THIS TO 'rancher/rancher-turtles-e2e' ONCE THE BRANCH IS MERGED
@@ -14,27 +14,25 @@ describe('Import CAPV', { tags: '@vsphere' }, () => {
 
   // The `vsphere_secrets_json_base64` environment variable must be stored in GitHub Actions Secrets and BASE64 encoded.
   //
-  // Note1: For manual CAPV testing, you will need to export the variable using:
-  // `export VSPHERE_SECRETS_JSON_BASE64=$(echo '{ ... }' | jq | base64 -w0)`
-  //
-  // Note2: The `vsphere_server`, `vsphere_username`, and `vsphere_password` are also set in respective environment variables
+  // Note: The `vsphere_server`, `vsphere_username`, and `vsphere_password` are also set in respective environment variables
   // and are used for installing the CAPV provider. For simplicity, they are included here as well.
   //
-  // This secret contains a JSON object with the following keys and their corresponding real values:
-  // {
-  //   "vsphere_server": "replace_vsphere_server",
-  //   "vsphere_username": "replace_vsphere_username",
-  //   "vsphere_password": "replace_vsphere_password",
-  //   "vsphere_datacenter": "replace_vsphere_datacenter",
-  //   "vsphere_datastore": "replace_vsphere_datastore",
-  //   "vsphere_network": "replace_vsphere_network",
-  //   "vsphere_resource_pool": "replace_vsphere_resource_pool",
-  //   "vsphere_folder": "replace_vsphere_folder",
-  //   "vsphere_template": "replace_vsphere_template",
-  //   "vsphere_ssh_authorized_key": "replace_vsphere_ssh_authorized_key",
-  //   "vsphere_tls_thumbprint": "replace_vsphere_tls_thumbprint",
-  //   "cluster_control_plane_endpoint_ip": "replace_cluster_control_plane_endpoint_ip"
-  // }
+  // Define Secret JSON object with these keys and corresponding replace_* values | jq | base64 -w0
+  // export VSPHERE_SECRETS_JSON_BASE64=$(echo \
+  // '{ \
+  //   "vsphere_server": "replace_vsphere_server", \
+  //   "vsphere_username": "replace_vsphere_username", \
+  //   "vsphere_password": "replace_vsphere_password", \
+  //   "vsphere_datacenter": "replace_vsphere_datacenter", \
+  //   "vsphere_datastore": "replace_vsphere_datastore", \
+  //   "vsphere_network": "replace_vsphere_network", \
+  //   "vsphere_resource_pool": "replace_vsphere_resource_pool", \
+  //   "vsphere_folder": "replace_vsphere_folder", \
+  //   "vsphere_template": "replace_vsphere_template", \
+  //   "vsphere_ssh_authorized_key": "replace_vsphere_ssh_authorized_key", \
+  //   "vsphere_tls_thumbprint": "replace_vsphere_tls_thumbprint", \
+  //   "cluster_control_plane_endpoint_ip": "replace_cluster_control_plane_endpoint_ip" \
+  // }' | jq | base64 -w0)
 
   // Decode the base64 encoded secrets and make json object
   const vsphere_secrets_json = JSON.parse(Buffer.from(vsphere_secrets_json_base64, 'base64').toString('utf-8'))
