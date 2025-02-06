@@ -13,10 +13,6 @@ describe('Import CAPV', { tags: '@vsphere' }, () => {
   const vsphere_secrets_json_base64 = Cypress.env("vsphere_secrets_json_base64")
 
   // The `vsphere_secrets_json_base64` environment variable must be stored in GitHub Actions Secrets and BASE64 encoded.
-  //
-  // Note: The `vsphere_server`, `vsphere_username`, and `vsphere_password` are also set in respective environment variables
-  // and are used for installing the CAPV provider. For simplicity, they are included here as well.
-  //
   // Define Secret JSON object with these keys and corresponding replace_* values | jq | base64 -w0
   // export VSPHERE_SECRETS_JSON_BASE64=$(echo \
   // '{ \

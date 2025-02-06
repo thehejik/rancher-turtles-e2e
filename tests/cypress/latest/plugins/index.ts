@@ -48,10 +48,7 @@ module.exports = (on: Cypress.PluginEvents, config: Cypress.PluginConfigOptions)
   config.env.azure_client_secret = process.env.AZURE_CLIENT_SECRET
   config.env.azure_subscription_id = process.env.AZURE_SUBSCRIPTION_ID
   config.env.azure_location = process.env.AZURE_LOCATION
-  // VMware
-  config.env.vsphere_username = process.env.VSPHERE_USERNAME
-  config.env.vsphere_password = process.env.VSPHERE_PASSWORD
-  config.env.vsphere_server = process.env.VSPHERE_SERVER
+  // VMware vSphere
   config.env.vsphere_secrets_json_base64 = process.env.VSPHERE_SECRETS_JSON_BASE64
 
   config.env.grep = process.env.GREP;

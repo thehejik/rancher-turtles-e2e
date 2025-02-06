@@ -104,7 +104,16 @@ context('vSphere provider', { tags: '@vsphere' }, () => {
     qase(40,
       it('Create CAPV provider', () => {
         // Create vsphere Infrastructure provider
-        cy.addCloudCredsVMware(vsphereProvider, Cypress.env('vsphere_username'), Cypress.env('vsphere_password'), Cypress.env('vsphere_server'), '443');
+        // See capv_rke2_cluster.spec.ts for more details about `vsphere_secrets_json_base64` structure
+        const vsphere_secrets_json_base64 = Cypress.env("vsphere_secrets_json_base64")
+        // Decode the base64 encoded secret and make json object
+        const vsphere_secrets_json = JSON.parse(Buffer.from(vsphere_secrets_json_base64, 'base64').toString('utf-8'))
+        // Access keys from the json object
+        const vsphereUsername = JSON.stringify(vsphere_secrets_json.vsphere_username);
+        const vspherePassword = JSON.stringify(vsphere_secrets_json.vsphere_password);
+        const vsphereServer = JSON.stringify(vsphere_secrets_json.vsphere_server);
+        const vspherePort = '443';
+        cy.addCloudCredsVMware(vsphereProvider, vsphereUsername, vspherePassword, vsphereServer, vspherePort);
         cypressLib.burgerMenuToggle();
         cy.addInfraProvider('vsphere', vsphereProvider, vsphereProviderNamespace, vsphereProvider);
         var statusReady = 'Ready'
@@ -112,8 +121,7 @@ context('vSphere provider', { tags: '@vsphere' }, () => {
         cy.contains(statusReady);
       })
     );
-
-})
+  })
 
   context('Cloud Providers', { tags: '@full' }, () => {
     qase(13,
