@@ -27,6 +27,7 @@ describe('Install CAPI plugin', { tags: '@install' }, () => {
 
   it('Add capi-ui repo', { retries: 2 }, () => {
     cypressLib.addRepository('capi-ui', 'https://github.com/rancher/capi-ui-extension.git', 'git', 'gh-pages')
+    cy.pause(); // DEBUG
   })
 
   qase(3,
