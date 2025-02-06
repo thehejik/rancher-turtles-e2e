@@ -113,7 +113,7 @@ describe('Import CAPV', { tags: '@vsphere' }, () => {
     cy.checkChart('Install', 'Monitoring', 'cattle-monitoring');
   })
 
-  it.skip("Scale up imported CAPV cluster by updating values and forcefully updating the repo", () => {
+  it("Scale up imported CAPV cluster by updating values and forcefully updating the repo", () => {
     cy.contains('local')
       .click();
     cy.get('.header-buttons > :nth-child(1) > .icon')
@@ -160,7 +160,7 @@ describe('Import CAPV', { tags: '@vsphere' }, () => {
     // Go to Cluster Management > CAPI > Clusters and check if the cluster has started provisioning
     cypressLib.burgerMenuToggle();
     cy.checkCAPIMenu();
-    cy.contains('Provisioned ' + clusterName, { timeout: timeout });
+    cy.contains(new RegExp('Provisioned.*' + clusterName), { timeout: timeout });
   })
 
   it('Remove imported CAPV cluster from Rancher Manager', { retries: 1 }, () => {

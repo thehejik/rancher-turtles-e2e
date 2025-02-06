@@ -370,6 +370,7 @@ jobs:
           VSPHERE_SERVER: ${{ secrets.vsphere_server }}
           VSPHERE_USERNAME: ${{ secrets.vsphere_username }}
           VSPHERE_PASSWORD: ${{ secrets.vsphere_password }}
+          VSPHERE_SECRETS_JSON_BASE64: ${{ secrets.vsphere_secrets_json_base64 }}
           QASE_RUN_ID: ${{ needs.pre-qase.outputs.qase_run_id }}
           GREPTAGS: ${{ inputs.grep_test_by_tag }}
           TURTLES_OPERATOR_VERSION: ${{inputs.turtles_operator_version}}
@@ -382,6 +383,7 @@ jobs:
             e2e/unit_tests/providers_setup.spec.ts
             e2e/unit_tests/capd_kubeadm_cluster.spec.ts
             e2e/unit_tests/capd_rke2_cluster.spec.ts
+            e2e/unit_tests/capv_rke2_cluster.spec.ts
             e2e/unit_tests/capa_rke2_cluster.spec.ts
             e2e/unit_tests/capa_eks_cluster.spec.ts
             e2e/unit_tests/capz_cluster.spec.ts

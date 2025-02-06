@@ -6,8 +6,6 @@ metadata:
   name: {{ .Values.cluster.name }}
   labels:
     cluster.x-k8s.io/cluster-name: {{ .Values.cluster.name }}
-  annotations:
-    "helm.sh/resource-policy": keep
 spec:
   clusterNetwork:
     pods:
