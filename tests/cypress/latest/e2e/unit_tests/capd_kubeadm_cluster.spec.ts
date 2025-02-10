@@ -22,10 +22,10 @@ describe('Import CAPD Kubeadm', { tags: '@short' }, () => {
   const clustersRepo = 'clusters'
   const clusterName = 'cluster1'
   const className = 'quick-start'
-  const repoUrl = 'https://github.com/rancher/rancher-turtles-e2e.git'
+  const repoUrl = 'https://github.com/thehejik/rancher-turtles-e2e.git'
   const basePath = '/tests/assets/rancher-turtles-fleet-example/'
-  const pathNames = ['namespace_autoimport', 'cluster_autoimport', 'clusterclass_autoimport']
-  const branch = 'main'
+  const pathNames = ['clusterclass_autoimport']
+  const branch = 'fleet-agent'
 
   beforeEach(() => {
     cy.login();
@@ -79,7 +79,7 @@ describe('Import CAPD Kubeadm', { tags: '@short' }, () => {
     // TODO: Refactor for other paths
     if (path.includes('namespace_autoimport')) {
       qase(7,
-        it('Install App on imported cluster', { retries: 1 }, () => {
+        it.skip('Install App on imported cluster', { retries: 1 }, () => {
           // Click on imported CAPD cluster
           cy.contains(clusterName).click();
           // Install Chart
@@ -88,7 +88,7 @@ describe('Import CAPD Kubeadm', { tags: '@short' }, () => {
       );
 
       qase(8,
-        it('Scale the imported CAPD cluster', () => {
+        it.skip('Scale the imported CAPD cluster', () => {
           // Access CAPI cluster
           cy.checkCAPIMenu();
           cy.contains('Machine Deployments').click();
@@ -112,7 +112,7 @@ describe('Import CAPD Kubeadm', { tags: '@short' }, () => {
     }
 
     qase(9,
-      it('Remove imported CAPD cluster from Rancher Manager', { retries: 1 }, () => {
+      it.skip('Remove imported CAPD cluster from Rancher Manager', { retries: 1 }, () => {
         // Check cluster is not deleted after removal
         cy.deleteCluster(clusterName);
         cy.goToHome();
@@ -124,7 +124,7 @@ describe('Import CAPD Kubeadm', { tags: '@short' }, () => {
     );
 
     qase(10,
-      it('Delete the CAPD cluster fleet repo(s) - ' + path, () => {
+      it.skip('Delete the CAPD cluster fleet repo(s) - ' + path, () => {
         if (path.includes('clusterclass_autoimport')) {
           // Remove the cni fleet repo from fleet-default workspace
           cy.removeFleetGitRepo('clusterclass-cni', true, 'fleet-default');

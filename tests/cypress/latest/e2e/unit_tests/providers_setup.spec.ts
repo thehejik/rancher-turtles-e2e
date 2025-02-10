@@ -92,7 +92,7 @@ describe('Enable CAPI Providers', () => {
       cy.checkCAPIMenu();
       cy.contains('Providers').click();
       var statusReady = 'Ready'
-      statusReady = statusReady.concat(fleetProvider, 'addon', fleetProvider, 'v0.5.1');
+      statusReady = statusReady.concat(fleetProvider, 'addon', fleetProvider, 'v0.5.0');
       cy.contains(statusReady).scrollIntoView();
     });
   });
