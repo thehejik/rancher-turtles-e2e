@@ -65,7 +65,6 @@ describe('Import CAPV', { tags: '@vsphere' }, () => {
       if (data.includes('replace_cluster_control_plane_endpoint_ip')) {
         data = data.replace(/replace_cluster_control_plane_endpoint_ip/g, JSON.stringify(vsphere_secrets_json.cluster_control_plane_endpoint_ip))
       }
-      // data = data.replace(/replace_cluster_control_plane_endpoint_ip/g, JSON.stringify(vsphere_secrets_json.cluster_control_plane_endpoint_ip))
       encodedData = Buffer.from(data).toString('base64')
     })
 
