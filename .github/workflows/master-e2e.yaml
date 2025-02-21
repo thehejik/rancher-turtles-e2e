@@ -47,6 +47,9 @@ on:
       vsphere_secrets_json_base64:
         description: VSPHERE_SECRETS_JSON_BASE64 is required to create vSphere cluster
         required: true
+      vsphere_endpoints_list:
+        description: VSPHERE_ENDPOINTS_LIST contains space separated list of IPs for kube-vip
+        required: true
     inputs:
       cert-manager_version:
         description: Version of cert-manager to use
@@ -117,14 +120,17 @@ jobs:
       - name: Set Runner
         id: set-runner
         run: |
-          if [[ "${{ inputs.grep_test_by_tag }}" == *"@vsphere"* ]]; then
-            echo "initial-runner=vsphere" >> $GITHUB_OUTPUT
-          else
-            echo "initial-runner=ubuntu-latest" >> $GITHUB_OUTPUT
-          fi
+            if [[ "${{ inputs.grep_test_by_tag }}" =~ "@vsphere" ]]; then
+              echo "initial-runner=vsphere" >> $GITHUB_OUTPUT
+              if [[ "${{ inputs.grep_test_by_tag }}" =~ "@full" || "${{ inputs.grep_test_by_tag }}" =~ "@short" ]]; then
+                echo "ERROR: @vsphere tests cannot be combined with @full and @short"
+                exit 1
+              fi
+            else
+              echo "initial-runner=ubuntu-latest" >> $GITHUB_OUTPUT
+            fi
 
   create-runner:
-    # if: "!contains(github.event.inputs.grep_test_by_tag, '@vsphere')"
     needs: determine-runner
     runs-on: ${{ needs.determine-runner.outputs.initial-runner }}
     outputs:
@@ -320,10 +326,18 @@ jobs:
       - name: Copy chart file for chartmuseum
         if: ${{ inputs.operator_dev_chart == true }}
         run: cp ${{ runner.temp }}/rancher-turtles-${{ env.TAG }}.tgz ${{ github.workspace }}/tests/assets
+      - name: Inject kube-vip controlplane IP for vsphere into capv-helm-values.yaml
+        if: ${{ needs.create-runner.outputs.uuid == 'vsphere' }}
+        run: |
+          # Implements a round-robin load distribution strategy across 3 control plane IPs
+          # by using GitHub Actions run_number modulo operation to select the endpoint.
+          # This helps evenly distribute test traffic and avoid overloading a single endpoint.
+          INDEX=$(((${{ github.run_number }} % 3) + 1))
+          CP_ENDPOINT_IP=$(echo ${{ secrets.vsphere_endpoints_list }} | cut -d' ' -f${INDEX})
+          sed -i "s/replace_cluster_control_plane_endpoint_ip/${CP_ENDPOINT_IP}/" tests/cypress/latest/fixtures/capv-helm-values.yaml
       - name: Install Rancher Manager
         env:
           PUBLIC_DNS: ${{ needs.create-runner.outputs.public_dns }}
-          PUBLIC_DOMAIN: bc.googleusercontent.com
         run: cd tests && make e2e-install-rancher
       - name: Extract component versions/informations
         id: component
@@ -433,7 +447,7 @@ jobs:
           echo "K3s on Rancher Manager: ${{ env.INSTALL_K3S_VERSION }}" >> ${GITHUB_STEP_SUMMARY}
 
   delete-runner:
-    if: ${{ always() && needs.determine-runner.outputs.initial-runner != 'vsphere' }}
+    if: ${{ always() && needs.create-runner.result == 'success' && needs.create-runner.outputs.uuid != 'vsphere' }}
     needs: [create-runner, e2e]
     runs-on: ubuntu-latest
     steps:
@@ -451,7 +465,7 @@ jobs:
           gcloud --quiet secrets delete PAT_TOKEN_${{ needs.create-runner.outputs.uuid }} || true
           gcloud --quiet secrets delete GH_REPO_${{ needs.create-runner.outputs.uuid }} || true
       - name: Delete runner
-        if: ${{ always() && needs.create-runner.result == 'success' && inputs.destroy_runner == true }}
+        if: ${{ always() && inputs.destroy_runner == true }}
         run: |
           gcloud --quiet compute instances delete ${{ needs.create-runner.outputs.runner }} \
             --delete-disks all \
@@ -459,8 +473,8 @@ jobs:
 
   post-qase:
     if: ${{ always() && needs.pre-qase.outputs.qase_run_id != '' }}
-    needs: [e2e, pre-qase]
-    runs-on: ${{ needs.determine-runner.outputs.initial-runner }}
+    needs: [create-runner, e2e, pre-qase]
+    runs-on: ${{ needs.create-runner.outputs.uuid }}
     env:
       QASE_API_TOKEN: ${{ secrets.qase_api_token }}
       QASE_PROJECT_CODE: RT
@@ -495,14 +509,14 @@ jobs:
   # Just to signify that something has been cancelled and it's not useful to check the test
   declare-cancelled:
     if: ${{ always() && contains(needs.e2e.result, 'cancelled') }}
-    needs: e2e
-    runs-on: ${{ needs.determine-runner.outputs.initial-runner }}
+    needs: [create-runner, e2e]
+    runs-on: ${{ needs.create-runner.outputs.uuid }}
     steps:
       - name: Specify in summary if something has been cancelled
         run: echo "# TEST CANCELLED!" >> ${GITHUB_STEP_SUMMARY}
 
   cleanup-vsphere-runner:
-    if: ${{ always() && needs.determine-runner.outputs.initial-runner == 'vsphere' && inputs.destroy_runner == true }}
+    if: ${{ always() && needs.create-runner.outputs.uuid == 'vsphere' && inputs.destroy_runner == true }}
     needs: [create-runner, e2e]
     runs-on: vsphere
     steps:

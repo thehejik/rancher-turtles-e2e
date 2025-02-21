@@ -17,7 +17,7 @@ docker network create \
     kind || true
 
 # Start Cypress tests with docker
-docker run -v $PWD:/workdir -w /workdir \
+docker run --init -v $PWD:/workdir -w /workdir \
     --user $(id -u):$(id -g) \
     -e CYPRESS_TAGS=$CYPRESS_TAGS \
     -e CAPI_UI_VERSION=$CAPI_UI_VERSION \
