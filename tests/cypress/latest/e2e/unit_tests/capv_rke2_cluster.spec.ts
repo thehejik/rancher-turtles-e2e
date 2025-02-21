@@ -60,6 +60,11 @@ describe('Import CAPV', { tags: '@vsphere' }, () => {
       data = data.replace(/replace_vsphere_template/g, JSON.stringify(vsphere_secrets_json.vsphere_template))
       data = data.replace(/replace_vsphere_ssh_authorized_key/g, JSON.stringify(vsphere_secrets_json.vsphere_ssh_authorized_key))
       data = data.replace(/replace_vsphere_tls_thumbprint/g, JSON.stringify(vsphere_secrets_json.vsphere_tls_thumbprint))
+      // Placeholder 'replace_cluster_control_plane_endpoint_ip' is already replaced at workflow level
+      // Anyway it might be helpful for local runs when capv-helm-values.yaml is not modified by the workflow
+      if (data.includes('replace_cluster_control_plane_endpoint_ip')) {
+        data = data.replace(/replace_cluster_control_plane_endpoint_ip/g, JSON.stringify(vsphere_secrets_json.cluster_control_plane_endpoint_ip))
+      }
       // data = data.replace(/replace_cluster_control_plane_endpoint_ip/g, JSON.stringify(vsphere_secrets_json.cluster_control_plane_endpoint_ip))
       encodedData = Buffer.from(data).toString('base64')
     })
@@ -132,7 +137,11 @@ describe('Import CAPV', { tags: '@vsphere' }, () => {
       data = data.replace(/replace_vsphere_template/g, JSON.stringify(vsphere_secrets_json.vsphere_template))
       data = data.replace(/replace_vsphere_ssh_authorized_key/g, JSON.stringify(vsphere_secrets_json.vsphere_ssh_authorized_key))
       data = data.replace(/replace_vsphere_tls_thumbprint/g, JSON.stringify(vsphere_secrets_json.vsphere_tls_thumbprint))
-      // data = data.replace(/replace_cluster_control_plane_endpoint_ip/g, JSON.stringify(vsphere_secrets_json.cluster_control_plane_endpoint_ip))
+      // Placeholder 'replace_cluster_control_plane_endpoint_ip' is already replaced at workflow level
+      // Anyway it might be helpful for local runs when capv-helm-values.yaml is not modified by the workflow
+      if (data.includes('replace_cluster_control_plane_endpoint_ip')) {
+        data = data.replace(/replace_cluster_control_plane_endpoint_ip/g, JSON.stringify(vsphere_secrets_json.cluster_control_plane_endpoint_ip))
+      }
       encodedData = Buffer.from(data).toString('base64')
     })
 
