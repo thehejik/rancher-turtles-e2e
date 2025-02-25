@@ -48,6 +48,14 @@ describe('Install Turtles Operator', { tags: '@install' }, () => {
       turtlesHelmRepo += ':8080'
     }
     cypressLib.addRepository('turtles-operator', turtlesHelmRepo, 'helm', 'none');
+    // Wait for real Active state, not just the initial Active State followed by In Progress State
+    // Would be nice to add this to addRepository function
+    cy.wait(1000);
+    cy.typeInFilter('turtles-operator');
+    cy.getBySel('sortable-table-0-action-button').click();
+    cy.contains('Refresh').click();
+    cy.wait(1000);
+    cy.contains(new RegExp('Active.*'+'turtles-operator'))
   })
 
   qase([2, 11],
