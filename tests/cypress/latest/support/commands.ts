@@ -369,6 +369,21 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
   // Select app namespace
   cy.setNamespace(namespace);
 
+  // Keep reloading page while state is Pending-Install (3 minute timeout)
+  let attempts = 0;
+  const maxAttempts = 6; // 3 minutes with 30 second intervals
+  const checkAndReload = () => {
+    cy.get('.outlet').then(($outlet) => {
+      if ($outlet.text().includes('Pending-Install') && attempts < maxAttempts) {
+        attempts++;
+        cy.wait(30000);
+        cy.reload();
+        checkAndReload();
+      }
+    });
+  };
+  checkAndReload();
+
   // Resource should be deployed (green badge)
   cy.get('.outlet').contains('Deployed', { timeout: 180000 });
   cy.namespaceReset();
