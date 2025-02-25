@@ -369,18 +369,26 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
   // Select app namespace
   cy.setNamespace(namespace);
 
+  // Wait for API until Rancher pod is back while installing Turtles
   if (chartName == 'Rancher Turtles') {
-    // Wait for API until Rancher pod is back while installing Turtles
     cy.wait(5000);
-    cy.request({
-      url: '/v3',
-      retryOnStatusCodeFailure: true,
-      timeout: 180000,
-    }).then((response) => {
-      expect(response.status).to.eq(200);
-      // Once API is back, reload the page
-      cy.reload();
-    });
+    const checkApiStatus = (retries = 20) => {
+      cy.request({
+        url: '/v3',
+        failOnStatusCode: false,
+        timeout: 30000,
+      }).then((response) => {
+        if (response.status !== 200 && retries > 0) {
+          cy.wait(5000); // Wait for 5 seconds before retrying
+          checkApiStatus(retries - 1);
+        } else {
+          expect(response.status).to.eq(200);
+          // Once API is back, reload the page
+          cy.reload();
+        }
+      });
+    };
+    checkApiStatus();
   }
 
   // Resource should be deployed (green badge)
