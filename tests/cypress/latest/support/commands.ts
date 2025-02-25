@@ -285,6 +285,41 @@ Cypress.Commands.add('addCloudCredsVMware', (name: string, vsphere_username: str
   cy.contains(name).should('be.visible');
 });
 
+Cypress.Commands.add('addRepository', (repositoryName: string, repositoryURL: string, repositoryType: string, repositoryBranch: string) => {
+  cy.contains('local')
+    .click();
+    cy.clickNavMenu(['Apps', 'Repositories'])
+  // Make sure we are in the 'Repositories' screen (test failed here before)
+  // Test fails sporadically here, screen stays in pending state forever
+  // Ensuring "Loading..." overlay screen is not present.
+  cy.contains('Loading...', {timeout: 35000}).should('not.exist');
+  cy.contains('header', 'Repositories')
+    .should('be.visible');
+  cy.contains('Create')
+    .should('be.visible');
+
+  cy.clickButton('Create');
+  cy.contains('Repository: Create')
+    .should('be.visible');
+  cy.typeValue('Name', repositoryName);
+  if (repositoryType === 'git') {
+    cy.contains('Git repository')
+      .click();
+    cy.typeValue('Git Repo URL', repositoryURL);
+    cy.typeValue('Git Branch', repositoryBranch);
+  } else {
+    cy.typeValue('Index URL', repositoryURL);
+  }
+  cy.clickButton('Create');
+  // Make sure the repo is active before leaving
+  cy.wait(1000);
+  cy.typeInFilter(repositoryName);
+  cy.getBySel('sortable-table-0-action-button').click();
+  cy.contains('Refresh').click({force: true});
+  cy.wait(1000);
+  cy.contains(new RegExp('Active.*'+repositoryName));
+});
+
 // Command to Install or Update App from Charts menu
 // Operation types: Install, Update
 // You can optionally provide an array of questions and answer them before the installation starts

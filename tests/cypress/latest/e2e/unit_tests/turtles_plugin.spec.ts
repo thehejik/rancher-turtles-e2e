@@ -15,6 +15,7 @@ limitations under the License.
 import '~/support/commands';
 import * as cypressLib from '@rancher-ecp-qa/cypress-library';
 import { qase } from 'cypress-qase-reporter/dist/mocha';
+import { timers } from 'cypress/types/jquery';
 
 Cypress.config();
 describe('Install CAPI plugin', { tags: '@install' }, () => {
@@ -26,15 +27,7 @@ describe('Install CAPI plugin', { tags: '@install' }, () => {
   });
 
   it('Add capi-ui repo', () => {
-    cypressLib.addRepository('capi-ui', 'https://github.com/rancher/capi-ui-extension.git', 'git', 'gh-pages')
-    // Wait for real Active state, not just the initial Active State followed by In Progress State
-    // Would be nice to add this to addRepository function
-    cy.wait(1000);
-    cy.typeInFilter('capi-ui');
-    cy.getBySel('sortable-table-0-action-button').click();
-    cy.contains('Refresh').click();
-    cy.wait(1000);
-    cy.contains(new RegExp('Active.*'+'capi-ui'))
+    cy.addRepository('capi-ui', 'https://github.com/rancher/capi-ui-extension.git', 'git', 'gh-pages')
   })
 
   qase(3,
