@@ -369,12 +369,13 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
   // Select app namespace
   cy.setNamespace(namespace);
 
-  // Wait for API until Rancher pod is back while installing Turtles
+  // Rancher pod restarts during Turtles installation
+  // Poll /dashboard until it returns HTTP 200 and then reload the page
   if (chartName == 'Rancher Turtles') {
     cy.wait(5000);
     const checkApiStatus = (retries = 20) => {
       cy.request({
-        url: '/v3',
+        url: '/',
         failOnStatusCode: false,
         timeout: 30000,
       }).then((response) => {
@@ -383,7 +384,7 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
           checkApiStatus(retries - 1);
         } else {
           expect(response.status).to.eq(200);
-          // Once API is back, reload the page
+          // Once /dashboard is back, reload the page
           cy.reload();
         }
       });
