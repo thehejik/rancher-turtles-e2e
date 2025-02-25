@@ -19,6 +19,7 @@ docker network create \
 # Start Cypress tests with docker
 docker run --init -v $PWD:/workdir -w /workdir \
     --user $(id -u):$(id -g) \
+    --security-opt apparmor=unconfined \
     -e CYPRESS_TAGS=$CYPRESS_TAGS \
     -e CAPI_UI_VERSION=$CAPI_UI_VERSION \
     -e CHARTMUSEUM_REPO=$CHARTMUSEUM_REPO \
