@@ -16,10 +16,9 @@ docker network create \
     --opt "com.docker.network.driver.mtu"="1500" \
     kind || true
 
-# Start Cypress tests with docker
+# Start Cypress tests with docker - only root or user with uid 1000 is working
 docker run --init -v $PWD:/workdir -w /workdir \
-    --security-opt apparmor:unconfined \
-    --user $(id -u):$(id -g) \
+    --user 1000:$(id -g) \
     -e CYPRESS_TAGS=$CYPRESS_TAGS \
     -e CAPI_UI_VERSION=$CAPI_UI_VERSION \
     -e CHARTMUSEUM_REPO=$CHARTMUSEUM_REPO \
