@@ -315,7 +315,8 @@ Cypress.Commands.add('addRepository', (repositoryName: string, repositoryURL: st
   cy.wait(1000);
   cy.typeInFilter(repositoryName);
   cy.getBySel('sortable-table-0-action-button').click();
-  cy.contains('Refresh').click({force: true});
+  cy.wait(1000);
+  cy.get('.icon.group-icon.icon-refresh').click();
   cy.wait(1000);
   cy.contains(new RegExp('Active.*'+repositoryName));
 });
@@ -370,21 +371,22 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
   cy.setNamespace(namespace);
 
   // Rancher pod restarts during Turtles installation
-  // Poll /dashboard until it returns HTTP 200 and then reload the page
+  // Poll /dashboard/about until it returns HTTP 200 and then reload the page
   if (chartName == 'Rancher Turtles') {
-    cy.wait(5000);
+    cy.wait(7000); // Should be enough time for Rancher pod to start restarting
     const checkApiStatus = (retries = 20) => {
       cy.request({
-        url: '/',
+        url: '/about',
         failOnStatusCode: false,
         timeout: 30000,
       }).then((response) => {
         if (response.status !== 200 && retries > 0) {
-          cy.wait(5000); // Wait for 5 seconds before retrying
+          cy.wait(5000);
           checkApiStatus(retries - 1);
         } else {
           expect(response.status).to.eq(200);
-          // Once /dashboard is back, reload the page
+          // Once /dashboard/about is back, reload the page
+          cy.wait(5000);
           cy.reload();
         }
       });
