@@ -85,7 +85,7 @@ describe('Import CAPV', { tags: '@vsphere' }, () => {
     cypressLib.checkNavIcon('cluster-management')
       .should('exist');
 
-    // Add CAPZ fleet repository
+    // Add CAPV fleet repository
     cy.addFleetGitRepo(repoName, repoUrl, branch, path);
 
     // Go to Cluster Management > CAPI > Clusters and check if the cluster has started provisioning
