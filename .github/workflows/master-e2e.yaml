@@ -525,20 +525,10 @@ jobs:
     runs-on: vsphere
     steps:
       - name: Cleanup vsphere runner
+        env:
+          WORKSPACE: ${{ github.workspace }}
         run: |
-          # do not exit on failure
-          set +e
-          # uninstall chartmuseum
-          sudo systemctl stop chartmuseum
-          sudo rm /etc/systemd/system/chartmuseum.service
-          sudo systemctl daemon-reload
-          sudo rm /usr/local/bin/chartmuseum
-          sudo helm plugin uninstall cm-push
-          # Stop all docker containers and remove everything
-          docker stop $(docker ps --all --quiet)
-          docker system prune --all --volumes --force
-          # destroy k3s cluster
-          /usr/local/bin/k3s-killall.sh
-          /usr/local/bin/k3s-uninstall.sh
-          # Delete all files in the workspace
-          [ -n "${{ github.workspace }}" ] && rm -r "${{ github.workspace }}"/*
+          echo $PWD
+          tests/scripts/vsphere-runner-cleanup.sh
+
+
