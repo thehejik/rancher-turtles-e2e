@@ -527,8 +527,6 @@ jobs:
       - name: Cleanup vsphere runner
         env:
           WORKSPACE: ${{ github.workspace }}
-        run: |
-          echo $PWD
-          bash tests/scripts/vsphere-runner-cleanup.sh
+        run: cd tests && make vsphere-runner-cleanup
 
 
