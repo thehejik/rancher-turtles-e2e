@@ -529,6 +529,6 @@ jobs:
           WORKSPACE: ${{ github.workspace }}
         run: |
           echo $PWD
-          tests/scripts/vsphere-runner-cleanup.sh
+          bash tests/scripts/vsphere-runner-cleanup.sh
 
 

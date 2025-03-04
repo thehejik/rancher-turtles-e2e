@@ -1,6 +1,8 @@
 #!/bin/bash
+
 # do not exit on failure
 set +e
+
 # uninstall chartmuseum
 sudo systemctl stop chartmuseum
 sudo rm /etc/systemd/system/chartmuseum.service
