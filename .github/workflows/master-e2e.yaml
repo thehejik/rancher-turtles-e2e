@@ -155,6 +155,13 @@ jobs:
             echo "uuid=${UUID//-}" >> ${GITHUB_OUTPUT}
             echo "runner=${GH_REPO//\//-}-ci-${UUID//-}" >> ${GITHUB_OUTPUT}
           fi
+      - name: Cleanup vsphere runner if needed
+        if: ${{ needs.determine-runner.outputs.initial-runner == 'vsphere' }}
+        run: |
+          # Cleanup vsphere runner if needed but do not delete github.workspace
+          if [ -f /usr/local/bin/k3s ]; then
+            cd tests && make vsphere-runner-cleanup
+          fi
       - name: Authenticate to GCP
         if: ${{ needs.determine-runner.outputs.initial-runner != 'vsphere' }}
         uses: google-github-actions/auth@v2
@@ -528,5 +535,3 @@ jobs:
         env:
           WORKSPACE: ${{ github.workspace }}
         run: cd tests && make vsphere-runner-cleanup
-
-
