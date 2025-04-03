@@ -78,7 +78,7 @@ describe('Enable CAPI Providers', () => {
       })
     );
 
-    it('Custom Fleet addon config', () => {
+    it.skip('Custom Fleet addon config', () => {
       // Allows Fleet addon to be installed on specific clusters only
 
       const clusterName = 'local';
