@@ -129,7 +129,7 @@ describe('Enable CAPI Providers', () => {
   context('Cloud Providers', { tags: '@full' }, () => {
 
     cloudProviderNamespaces.forEach(namespace => {
-      it('Create CAPI Cloud Providers Namespaces - ' + namespace, () => {
+      it.skip('Create CAPI Cloud Providers Namespaces - ' + namespace, () => {
         cy.createNamespace(namespace);
       })
     })

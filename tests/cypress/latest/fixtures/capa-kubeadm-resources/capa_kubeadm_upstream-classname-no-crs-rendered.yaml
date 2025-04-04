@@ -2,7 +2,7 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: Cluster
 metadata:
   name: th-capa
-  namespace: default
+  namespace: fleet-default
 spec:
   clusterNetwork:
     pods:
@@ -32,7 +32,7 @@ apiVersion: cluster.x-k8s.io/v1beta1
 kind: ClusterClass
 metadata:
   name: aws-ec2-kubeadm-class
-  namespace: default
+  namespace: fleet-default
 spec:
   controlPlane:
     ref:
@@ -69,7 +69,7 @@ spec:
       schema:
         openAPIV3Schema:
           type: string
-          default: us-east-1
+          default: us-west-2
     - name: sshKeyName
       required: true
       schema:
@@ -81,13 +81,13 @@ spec:
       schema:
         openAPIV3Schema:
           type: string
-          default: t3.large
+          default: t3.medium
     - name: workerMachineType
       required: true
       schema:
         openAPIV3Schema:
           type: string
-          default: t3.large
+          default: t3.medium
   patches:
     - name: region
       definitions:
@@ -157,7 +157,7 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSClusterTemplate
 metadata:
   name: aws-ec2-kubeadm-class
-  namespace: default
+  namespace: fleet-default
 spec:
   template:
     spec:
@@ -169,7 +169,7 @@ apiVersion: controlplane.cluster.x-k8s.io/v1beta1
 kind: KubeadmControlPlaneTemplate
 metadata:
   name: aws-ec2-kubeadm-class-control-plane
-  namespace: default
+  namespace: fleet-default
 spec:
   template:
     spec:
@@ -196,7 +196,7 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSMachineTemplate
 metadata:
   name: aws-ec2-kubeadm-class-control-plane
-  namespace: default
+  namespace: fleet-default
 spec:
   template:
     spec:
@@ -210,7 +210,7 @@ apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
 kind: AWSMachineTemplate
 metadata:
   name: aws-ec2-kubeadm-class-worker-machinetemplate
-  namespace: default
+  namespace: fleet-default
 spec:
   template:
     spec:
@@ -224,7 +224,7 @@ apiVersion: bootstrap.cluster.x-k8s.io/v1beta1
 kind: KubeadmConfigTemplate
 metadata:
   name: aws-ec2-kubeadm-class-worker-bootstraptemplate
-  namespace: default
+  namespace: fleet-default
 spec:
   template:
     spec:

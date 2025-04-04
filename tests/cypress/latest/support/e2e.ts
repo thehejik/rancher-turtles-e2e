@@ -54,6 +54,7 @@ declare global {
       typeInFilter(text: string): Chainable<Element>;
       goToHome(): Chainable<Element>;
       patchYamlResource(clusterName: string, namespace: string, resourceKind: string, resourceName: string, patch: object): Chainable<Element>;
+      importYaml(clusterName: string, yamlFilePath: string): Chainable<Element>;
     }
   }
 }
