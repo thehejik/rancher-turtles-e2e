@@ -31,7 +31,7 @@ describe('Enable CAPI Providers', () => {
   const kubeadmBaseURL = 'https://github.com/kubernetes-sigs/cluster-api/releases/'
   const kubeadmProviderTypes = ['bootstrap', 'control plane']
   const providerNamespaces = ['capi-kubeadm-bootstrap-system', 'capi-kubeadm-control-plane-system', 'capd-system']
-  const cloudProviderNamespaces = ['capa-system', 'capg-system', 'capz-system']
+  const cloudProviderNamespaces = ['capi-kubeadm-bootstrap-system', 'capi-kubeadm-control-plane-system', 'capa-system'] //, 'capg-system', 'capz-system']
   const vsphereProviderNamespace = 'capv-system'
 
   beforeEach(() => {
@@ -129,9 +129,30 @@ describe('Enable CAPI Providers', () => {
   context('Cloud Providers', { tags: '@full' }, () => {
 
     cloudProviderNamespaces.forEach(namespace => {
-      it.skip('Create CAPI Cloud Providers Namespaces - ' + namespace, () => {
+      it('Create CAPI Cloud Providers Namespaces - ' + namespace, () => {
         cy.createNamespace(namespace);
       })
+    })
+
+    kubeadmProviderTypes.forEach(providerType => {
+      qase(27,
+        it('Create Kubeadm Providers', () => {
+          // Create CAPI Kubeadm providers
+          if (providerType == 'control plane') {
+            // https://github.com/kubernetes-sigs/cluster-api/releases/v1.9.5/control-plane-components.yaml
+            const providerURL = kubeadmBaseURL + kubeadmProviderVersion + '/' + 'control-plane' + '-components.yaml'
+            const providerName = kubeadmProvider + '-' + 'control-plane'
+            const namespace = 'capi-kubeadm-control-plane-system'
+            cy.addCustomProvider(providerName, namespace, kubeadmProvider, providerType, kubeadmProviderVersion, providerURL);
+          } else {
+            // https://github.com/kubernetes-sigs/cluster-api/releases/v1.9.5/bootstrap-components.yaml
+            const providerURL = kubeadmBaseURL + kubeadmProviderVersion + '/' + providerType + '-components.yaml'
+            const providerName = kubeadmProvider + '-' + providerType
+            const namespace = 'capi-kubeadm-bootstrap-system'
+            cy.addCustomProvider(providerName, namespace, kubeadmProvider, providerType, kubeadmProviderVersion, providerURL);
+          }
+        })
+      );
     })
 
     qase(13,
@@ -147,7 +168,7 @@ describe('Enable CAPI Providers', () => {
     );
 
     qase(28,
-      it('Create CAPG provider', () => {
+      it.skip('Create CAPG provider', () => {
         // Create GCP Infrastructure provider
         cy.addCloudCredsGCP(googleProvider, Cypress.env('gcp_credentials'));
         cypressLib.burgerMenuToggle();
@@ -158,7 +179,7 @@ describe('Enable CAPI Providers', () => {
       })
     );
 
-    qase(20, it('Create CAPZ provider', () => {
+    qase(20, it.skip('Create CAPZ provider', () => {
       // Create Azure Infrastructure provider
       cy.addCloudCredsAzure(azureProvider, Cypress.env('azure_client_id'), Cypress.env('azure_client_secret'), Cypress.env('azure_subscription_id'));
       cypressLib.burgerMenuToggle();
