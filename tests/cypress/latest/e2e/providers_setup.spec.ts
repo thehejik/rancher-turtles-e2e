@@ -16,7 +16,7 @@ import {qase} from 'cypress-qase-reporter/dist/mocha';
 
 Cypress.config();
 describe('Enable CAPI Providers', () => {
-  const statusReady = 'Ready'
+  const statusReady = ['Ready']
   const branch = 'main'
   const turtlesRepoUrl = 'https://github.com/rancher/turtles.git'
 
@@ -95,14 +95,16 @@ describe('Enable CAPI Providers', () => {
             const providerName = kubeadmProvider + '-' + 'control-plane'
             cy.addCustomProvider(providerName, 'capi-kubeadm-control-plane-system', kubeadmProvider, providerType, kubeadmProviderVersion, providerURL);
             const readyStatus = statusReady.concat(providerName, 'controlPlane', kubeadmProvider, kubeadmProviderVersion)
-            cy.contains(readyStatus);
+            const readyStatusRegex = new RegExp(readyStatus.join('.*'), 's')
+            cy.contains(readyStatusRegex)
           } else {
             // https://github.com/kubernetes-sigs/cluster-api/releases/v1.9.5/bootstrap-components.yaml
             const providerURL = kubeadmBaseURL + kubeadmProviderVersion + '/' + providerType + '-components.yaml'
             const providerName = kubeadmProvider + '-' + providerType
             cy.addCustomProvider(providerName, 'capi-kubeadm-bootstrap-system', kubeadmProvider, providerType, kubeadmProviderVersion, providerURL);
             const readyStatus = statusReady.concat(providerName, 'bootstrap', kubeadmProvider, kubeadmProviderVersion)
-            cy.contains(readyStatus);
+            const readyStatusRegex = new RegExp(readyStatus.join('.*'), 's')
+            cy.contains(readyStatusRegex)
           }
         })
       );
@@ -115,7 +117,8 @@ describe('Enable CAPI Providers', () => {
         cy.addInfraProvider('Docker', dockerProvider, namespace);
         const readyStatus = statusReady.concat(dockerProvider, 'infrastructure', dockerProvider, kubeadmProviderVersion)
         // TODO: add actual vs expected
-        cy.contains(readyStatus);
+        const readyStatusRegex = new RegExp(readyStatus.join('.*'), 's')
+        cy.contains(readyStatusRegex)
         cy.verifyCAPIProviderImage(dockerProvider, namespace);
       })
     );
@@ -147,7 +150,8 @@ describe('Enable CAPI Providers', () => {
       cy.checkCAPIMenu();
       cy.contains('Providers').click();
       const readyStatus = statusReady.concat(fleetProvider, 'addon', fleetProvider, fleetProviderVersion);
-      cy.contains(readyStatus).scrollIntoView();
+      const readyStatusRegex = new RegExp(readyStatus.join('.*'), 's')
+      cy.contains(readyStatusRegex).scrollIntoView();
     });
   });
 
@@ -171,7 +175,8 @@ describe('Enable CAPI Providers', () => {
         cy.burgerMenuOperate('open');
         cy.addInfraProvider('vsphere', vsphereProvider, vsphereProviderNamespace, vsphereProvider);
         const readyStatus = statusReady.concat(vsphereProvider, 'infrastructure', vsphereProvider, vsphereProviderVersion)
-        cy.contains(readyStatus);
+        const readyStatusRegex = new RegExp(readyStatus.join('.*'), 's')
+        cy.contains(readyStatusRegex);
         cy.verifyCAPIProviderImage(vsphereProvider, vsphereProviderNamespace);
       })
     );
@@ -193,7 +198,8 @@ describe('Enable CAPI Providers', () => {
         cy.burgerMenuOperate('open');
         cy.addInfraProvider('Amazon', amazonProvider, namespace, amazonProvider);
         const readyStatus = statusReady.concat(amazonProvider, providerType, amazonProvider, amazonProviderVersion)
-        cy.contains(readyStatus);
+        const readyStatusRegex = new RegExp(readyStatus.join('.*'), 's')
+        cy.contains(readyStatusRegex)
         cy.verifyCAPIProviderImage(amazonProvider, namespace);
       })
     );
@@ -206,7 +212,8 @@ describe('Enable CAPI Providers', () => {
         cy.burgerMenuOperate('open');
         cy.addInfraProvider('Google', googleProvider, namespace, googleProvider);
         const readyStatus = statusReady.concat(googleProvider, providerType, googleProvider, googleProviderVersion)
-        cy.contains(readyStatus, { timeout: 120000 });
+        const readyStatusRegex = new RegExp(readyStatus.join('.*'), 's')
+        cy.contains(readyStatusRegex, { timeout: 120000 });
         cy.verifyCAPIProviderImage(googleProvider, namespace);
       })
     );
@@ -218,7 +225,8 @@ describe('Enable CAPI Providers', () => {
       cy.burgerMenuOperate('open');
       cy.addInfraProvider('Azure', azureProvider, namespace, azureProvider);
       const readyStatus = statusReady.concat(azureProvider, providerType, azureProvider, azureProviderVersion)
-      cy.contains(readyStatus, { timeout: 180000 });
+      const readyStatusRegex = new RegExp(readyStatus.join('.*'), 's')
+      cy.contains(readyStatusRegex, { timeout: 180000 });
       cy.verifyCAPIProviderImage(azureProvider, namespace);
     })
     );
