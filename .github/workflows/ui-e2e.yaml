@@ -10,9 +10,7 @@ run-name: >-
        github.event.schedule == '0 4 * * *' && format('[{0}] Nightly e2e job for `@vsphere`', github.run_number) ||
        github.event.schedule == '0 5 * * 6' && format('[{0}] Weekly e2e job for `@full`', github.run_number) ||
        github.event.schedule == '0 3 * * 6' && format('[{0}] Weekly e2e job for `@upgrade`', github.run_number) ||
-       'Unknown scheduled job') ||
-      github.event_name == 'pull_request' &&
-      format('[{0}] Validate Dependabot PR#{1}', github.run_number, github.event.pull_request.number)
+       'Unknown scheduled job')
     }}
 
 on:
