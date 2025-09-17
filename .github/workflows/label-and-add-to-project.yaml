@@ -10,6 +10,7 @@ on:
 
 jobs:
   add_label:
+    if: ${{ !startsWith(github.head_ref, 'dependabot/') }}
     env:
       SQUAD_QA_LABEL: "squad/qa"
       PROJECT_NAME: "CAPI / Turtles"
