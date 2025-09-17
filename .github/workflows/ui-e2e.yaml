@@ -10,8 +10,7 @@ run-name: >-
        github.event.schedule == '0 4 * * *' && format('[{0}] Nightly e2e job for `@vsphere`', github.run_number) ||
        github.event.schedule == '0 5 * * 6' && format('[{0}] Weekly e2e job for `@full`', github.run_number) ||
        github.event.schedule == '0 3 * * 6' && format('[{0}] Weekly e2e job for `@upgrade`', github.run_number) ||
-       'Unknown scheduled job')
-    }}
+       'Unknown scheduled job') }}
 
 on:
   workflow_dispatch:
@@ -62,10 +61,6 @@ on:
     - cron: '0 4 * * *' # @vsphere
     - cron: '0 5 * * 6' # @full on Saturdays only
     - cron: '0 3 * * 6' # @upgrade @short on Saturdays only
-  pull_request:
-    # Only run for opened Dependabot PRs, filtered by additional startsWith(github.head_ref, 'dependabot/')
-    types:
-      - opened
 
 jobs:
   ui:
