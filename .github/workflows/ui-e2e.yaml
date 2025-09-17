@@ -62,9 +62,14 @@ on:
     - cron: '0 4 * * *' # @vsphere
     - cron: '0 5 * * 6' # @full on Saturdays only
     - cron: '0 3 * * 6' # @upgrade @short on Saturdays only
+  pull_request:
+    # Only run for opened Dependabot PRs, filtered by additional startsWith(github.head_ref, 'dependabot/')
+    types:
+      - opened
 
 jobs:
   ui:
+    if: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'dependabot/')) }}
     uses: ./.github/workflows/master-e2e.yaml
     secrets:
       gcp_credentials: ${{ secrets.GCP_CREDENTIALS }}
@@ -95,4 +100,4 @@ jobs:
       skip_cluster_delete: ${{ inputs.skip_cluster_delete || (github.event_name == 'schedule' && false) }}
       runner_template: ${{ inputs.runner_template || 'capi-e2e-ci-runner-spot-n2-highmem-16-template-v3' }}
       cluster_name_suffix: ${{ inputs.cluster_name_suffix || github.run_number }}
-      grep_test_by_tag: ${{ inputs.grep_test_by_tag || (github.event.schedule == '0 3 * * *' && '@install @short') || (github.event.schedule == '0 4 * * *' && '@install @vsphere') || (github.event.schedule == '0 5 * * 6' && '@install @full') || (github.event.schedule == '0 3 * * 6' && '@install @upgrade @short') }}
+      grep_test_by_tag: ${{ inputs.grep_test_by_tag || (github.event.schedule == '0 3 * * *' && '@install @short') || (github.event.schedule == '0 4 * * *' && '@install @vsphere') || (github.event.schedule == '0 5 * * 6' && '@install @full') || (github.event.schedule == '0 3 * * 6' && '@install @upgrade @short') || (github.event_name == 'pull_request' && startsWith(github.head_ref, 'dependabot/') && '@install') }}
