@@ -346,7 +346,7 @@ Cypress.Commands.add('checkCAPIMenu', () => {
 Cypress.Commands.add('checkFleetHelmApps', (appList: string[]) => {
   cy.burgerMenuOperate('open');
   cy.contains('local').click();
-  const helmPsMenuLocation = isRancherManagerVersion('2.12') ? ['More Resources', 'Fleet', 'Helm Ops'] : ['More Resources', 'Fleet', 'HelmApps'];
+  const helmPsMenuLocation = isRancherManagerVersion('>=2.12') ? ['More Resources', 'Fleet', 'Helm Ops'] : ['More Resources', 'Fleet', 'HelmApps'];
   cy.accesMenuSelection(helmPsMenuLocation);
   appList.forEach((app) => {
     cy.typeInFilter(app);
@@ -398,7 +398,7 @@ Cypress.Commands.add('addInfraProvider', (providerType, namespace, cloudCredenti
 
   if (providerType != 'Docker' && providerType != 'Azure' && cloudCredentials) {
     cy.getBySel('cluster-prov-select-credential').trigger('click');
-    cy.contains(cloudCredentials).click();
+    cy.get('ul').contains(cloudCredentials).click();
   }
   cy.getBySel('capi-provider-create-save').should('be.visible');
   cy.clickButton('Create');
@@ -528,9 +528,14 @@ Cypress.Commands.add('addRepository', (repositoryName: string, repositoryURL: st
 // Example1: cy.checkChart('Alerting', 'default', [{ menuEntry: '(None)', checkbox: 'Enable Microsoft Teams' }]);
 // Example2: cy.checkChart('Rancher Turtles', 'rancher-turtles-system', [{ menuEntry: 'Rancher Turtles Features Settings', checkbox: 'Seamless integration with Fleet and CAPI'},{ menuEntry: 'Rancher webhook cleanup settings', inputBoxTitle: 'Webhook Cleanup Image', inputBoxValue: 'registry.k8s.io/kubernetes/kubectl:v1.28.0'}]);
 Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, questions, refreshRepo = false) => {
+  const isUpdateOperation = operation == 'Update'
+  // the 'Update' operation has been renamed to 'Edit' in 2.13.
+  if (isRancherManagerVersion('>=2.13') && isUpdateOperation) {
+    operation = 'Edit'
+  }
   cy.get('.nav').contains('Apps').click();
 
-  // Select All Repositries and click Action/Refresh
+  // Select All Repositories and click Action/Refresh
   cy.get('.nav').contains('Repositories').click();
   cy.waitForAllRowsInState('Active');
   cy.wait(500);
@@ -544,20 +549,20 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
 
   cy.get('.nav').contains('Charts').click();
 
-  if (isRancherManagerVersion('2.12')) {
+  if (isRancherManagerVersion('>=2.12')) {
     cy.getBySel('charts-header-title').should('be.visible');
   } else {
     cy.contains('Featured Charts').should('be.visible'); // TODO check if this cannot be unified with 2.12
   }
 
   // Chart filter input is not normal filter in 2.12 :(
-  if (isRancherManagerVersion('2.12')) {
+  if (isRancherManagerVersion('>=2.12')) {
     cy.getBySel('charts-filter-input').clear().type(chartName);
   } else {
     cy.typeInFilter(chartName);
   }
-  let chartSelector = isRancherManagerVersion('2.12') ? 'app-chart-cards-container' : 'chart-selection-grid';
-  const turtlesChartSelector = isRancherManagerVersion('2.12') ? '"item-card-cluster/turtles-chart/rancher-turtles"' : '"select-icon-grid-Rancher Turtles - the Cluster API Extension"';
+  let chartSelector = isRancherManagerVersion('>=2.12') ? 'app-chart-cards-container' : 'chart-selection-grid';
+  const turtlesChartSelector = isRancherManagerVersion('>=2.12') ? '"item-card-cluster/turtles-chart/rancher-turtles"' : '"select-icon-grid-Rancher Turtles - the Cluster API Extension"';
   
   if (chartName == 'Rancher Turtles') {
     chartSelector = turtlesChartSelector
@@ -575,7 +580,7 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
     cy.url().should("contain", version)
   }
 
-  if (chartName == 'Rancher Turtles' && operation == 'Update') {
+  if (chartName == 'Rancher Turtles' && isUpdateOperation) {
     cy.get('body').invoke('text').then((bodyText) => {
       if (bodyText.includes('Current')) {
         cy.contains('Current').click();
@@ -591,7 +596,7 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
   if (questions) {
     // Some apps like Alerting show questions page directly so no further action needed here
     // Some other apps like Turtles have a 'Customize install settings' checkbox or its variant which needs to be clicked
-    if (chartName == 'Rancher Turtles' && operation == "Update") {
+    if (chartName == 'Rancher Turtles' && isUpdateOperation) {
       cy.contains('Customize install settings').should('be.visible').click();
     }
 
@@ -606,7 +611,11 @@ Cypress.Commands.add('checkChart', (operation, chartName, namespace, version, qu
     });
   }
 
-  cy.clickButton(operation);
+  if (isRancherManagerVersion('>=2.13') && isUpdateOperation) {
+    cy.clickButton('Save changes');
+  } else {
+    cy.clickButton(operation);
+  }
 
   // If 'namespaces <namespace> not found' error or `Error` button is visible,
   // wait for `Error` button to disappear and click on the `Install` button again
@@ -778,7 +787,7 @@ Cypress.Commands.add('addFleetGitRepo', (repoName, repoUrl, branch, paths, targe
     cy.contains(workspace).should('be.visible').click();
   }
 
-  if (isRancherManagerVersion('2.12')) {
+  if (isRancherManagerVersion('>=2.12')) {
     cy.accesMenuSelection(['Continuous Delivery', 'App Bundles']);
     // replacement for cy.getBySel('masthead-create').should('be.visible');
     cy.contains('Create App Bundle').should('be.visible');
@@ -825,7 +834,7 @@ Cypress.Commands.add('addFleetGitRepo', (repoName, repoUrl, branch, paths, targe
 Cypress.Commands.add('removeFleetGitRepo', (repoName, workspace = 'fleet-local') => {
   cy.checkFleetGitRepoActive(repoName, workspace);
   // Click on the actions menu and select 'Delete' from the menu
-  if (isRancherManagerVersion('2.12')) {
+  if (isRancherManagerVersion('>=2.12')) {
     cy.getBySel('masthead-action-menu').should('be.visible').click();
   } else {
     cy.get('.actions .btn.actions').click();
@@ -841,7 +850,7 @@ Cypress.Commands.add('removeFleetGitRepo', (repoName, workspace = 'fleet-local')
 Cypress.Commands.add('forceUpdateFleetGitRepo', (repoName, workspace) => {
   cy.checkFleetGitRepoActive(repoName, workspace);
   // Click on the actions menu and select 'Force Update' from the menu
-  if (isRancherManagerVersion('2.12')) {
+  if (isRancherManagerVersion('>=2.12')) {
     cy.getBySel('masthead-action-menu').should('be.visible').click();
   } else {
     cy.get('.actions .btn.actions').click();
@@ -854,7 +863,7 @@ Cypress.Commands.add('forceUpdateFleetGitRepo', (repoName, workspace) => {
 Cypress.Commands.add('goToFleetGitRepos', (workspace = 'fleet-local') => {
   // Go to 'Continuous Delivery' > 'Git Repos'
   cy.burgerMenuOperate('open');
-  const gitRepoMenuLocation = isRancherManagerVersion('2.12') ? ['Continuous Delivery', 'Resources', 'Git Repos'] : ['Continuous Delivery', 'Git Repos'];
+  const gitRepoMenuLocation = isRancherManagerVersion('>=2.12') ? ['Continuous Delivery', 'Resources', 'Git Repos'] : ['Continuous Delivery', 'Git Repos'];
   cy.accesMenuSelection(gitRepoMenuLocation);
   cy.getBySel('masthead-create').should('be.visible');
   // Change the workspace using the dropdown on the top bar
