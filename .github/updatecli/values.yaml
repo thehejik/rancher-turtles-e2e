@@ -21,11 +21,13 @@ scm:
   # token: "ghp_xxx"
 
   # Repository settings (recommended to fill for CI / automation):
-  # owner: my-org-or-user
-  # repository: my-repo
-  # username: updatecli-bot
-  # user: updatecli-bot
-  # email: updatecli-bot@example.com
-  # branch: main
+  owner: "rancher"
+  repository: "rancher-turtles-e2e"
+  username: "github-actions"
+  user: "Github Action bot"
+  email: updatecli-bot@example.com
+  branch: main
+  labels:
+    - "updatecli"
 
 # Example: to disable SCM during local dry-runs, set `scm.enabled: false`.

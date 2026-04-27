@@ -29,6 +29,10 @@ targets:
     name: "Update HELM_VERSION"
     kind: "file"
     sourceid: latestHelm
+    # {{ if .scm.enabled }}
+    scmid: default
+    actionid: default
+    # {{ end }}
     spec:
       file: ".github/workflows/master-e2e.yaml"
       # Regex: find the line starting with HELM_VERSION= and capture the value
@@ -39,6 +43,10 @@ targets:
     name: "Update HELM_SHA256"
     kind: "file"
     sourceid: helmSHA
+    # {{ if .scm.enabled }}
+    scmid: default
+    actionid: default
+    # {{ end }}
     spec:
       file: ".github/workflows/master-e2e.yaml"
       matchpattern: 'HELM_SHA256=".*"'

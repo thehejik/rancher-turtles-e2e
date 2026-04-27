@@ -4,7 +4,7 @@
 # (for example by adding a leading `---` and providing all required fields).
 
 # {{ if and .scm.enabled ( eq .scm.kind "github" ) }}
-# {{ $GitHubUser := env ""}}
+# {{ $GitHubUser := env "GITHUB_ACTOR"}}
 # {{ $GitHubUsername := env "GITHUB_ACTOR"}}
 # {{ $GitHubPAT := env .scm.env_token }}
 # {{ $GitHubRepositoryList := env "GITHUB_REPOSITORY" | split "/"}}
@@ -28,23 +28,23 @@ scms:
   default:
     kind: "github"
     spec:
-    # {{ if .scm.user }}
-    user: '{{ default $GitHubUser .scm.user }}'
-    # {{ end }}
-    # {{ if .scm.email }}
-    email: '{{ .scm.email }}'
-    # {{ end }}
-    owner: '{{ default $GitHubRepositoryList._0 .scm.owner }}'
-    repository: '{{ default $GitHubRepositoryList._1 .scm.repository }}'
-    token: '{{ default $GitHubPAT .scm.token }}'
-    username: '{{ default $GitHubUsername  .scm.username }}'
-    #{{ if .scm.branch }}
-    branch: '{{ .scm.branch }}'
-    #{{ end }}
-    # {{ if .scm.commitusingapi }}
-    commitusingapi: {{.scm.commitusingapi}}
-    # {{ end }}
-    # {{ if .scm.url }}
-    url: '{{ .scm.url }}'
-    # {{ end }}
+      # {{ if .scm.user }}
+      user: '{{ default $GitHubUser .scm.user }}'
+      # {{ end }}
+      # {{ if .scm.email }}
+      email: '{{ .scm.email }}'
+      # {{ end }}
+      owner: '{{ default $GitHubRepositoryList._0 .scm.owner }}'
+      repository: '{{ default $GitHubRepositoryList._1 .scm.repository }}'
+      token: '{{ default $GitHubPAT .scm.token }}'
+      username: '{{ default $GitHubUsername  .scm.username }}'
+      #{{ if .scm.branch }}
+      branch: '{{ .scm.branch }}'
+      #{{ end }}
+      # {{ if .scm.commitusingapi }}
+      commitusingapi: {{.scm.commitusingapi}}
+      # {{ end }}
+      # {{ if .scm.url }}
+      url: '{{ .scm.url }}'
+      # {{ end }}
 # {{ end }}
