@@ -4,8 +4,8 @@
 # (for example by adding a leading `---` and providing all required fields).
 
 # {{ if and .scm.enabled ( eq .scm.kind "github" ) }}
-# {{ $GitHubUser := env "GITHUB_ACTOR"}}
-# {{ $GitHubUsername := env "GITHUB_ACTOR"}}
+# {{ $GitHubUser := env "UPDATECLI_ACTOR"}}
+# {{ $GitHubUsername := env "UPDATECLI_ACTOR"}}
 # {{ $GitHubPAT := env .scm.env_token }}
 # {{ $GitHubRepositoryList := env "GITHUB_REPOSITORY" | split "/"}}
 actions:
