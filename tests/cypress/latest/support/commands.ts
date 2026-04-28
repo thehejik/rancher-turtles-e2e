@@ -29,10 +29,9 @@ import {
   isPrimeChannel,
   isRancherManagerVersion,
   isTurtlesDevChart,
-  isTurtlesPrimeBuild,
-  providersChartNeedsStgRegistry
-} from '~/support/utils';
-import {vars} from '~/support/variables'
+  isTurtlesPrimeBuild
+} from './utils';
+import {vars} from './variables'
 
 // Generic commands
 // Go to specific Sub Menu from Access Menu
@@ -594,7 +593,7 @@ Cypress.Commands.add('checkChart', (clusterName, operation, chartName, namespace
 
     // for >=2.13 we use an external repo to install providers chart, and for 2.12 there is no need to install it.
     if (isTurtlesProvidersChart && isRancherManagerVersion('>=2.13')) {
-      return vars.turtlesProvidersChartSelector;
+      return `"${vars.turtlesProvidersChartSelector}"`;
     }
 
     return 'app-chart-cards-container';
@@ -633,7 +632,7 @@ Cypress.Commands.add('checkChart', (clusterName, operation, chartName, namespace
         }
       });
       // Select first of the matching listed version
-      cy.getBySel('chart-version-link').first().click();
+      cy.getBySel('chart-versions').first().click();
       cy.contains(options.version).click();
       cy.url().should("contain", options.version);
     }
@@ -879,23 +878,13 @@ Cypress.Commands.add('addFleetGitRepo', (repoName, repoUrl, branch, paths, targe
     cy.contains(workspace).should('be.visible').click();
   }
 
-  if (isRancherManagerVersion('>=2.12')) {
-    cy.accesMenuSelection(['Continuous Delivery', 'App Bundles']);
-    // replacement for cy.getBySel('masthead-create').should('be.visible');
-    cy.contains('Create App Bundle').should('be.visible');
-    selectWorkspace(workspace);
-    cy.clickButton('Create App Bundle');
-    // Click on gitrepo container
-    cy.contains('Git Repos').should('be.visible').click();
-    cy.contains('App Bundle:').should('be.visible');
-
-  } else {
-    cy.accesMenuSelection(['Continuous Delivery', 'Git Repos']);
-    cy.getBySel('masthead-create').should('be.visible');
-    selectWorkspace(workspace);
-    cy.clickButton('Add Repository');
-    cy.contains('Git Repo:').should('be.visible');
-  }
+  cy.accesMenuSelection(['Continuous Delivery', 'App Bundles']);
+  cy.contains('Create App Bundle').should('be.visible');
+  selectWorkspace(workspace);
+  cy.clickButton('Create App Bundle');
+  // Click on gitrepo container
+  cy.contains('Git Repos').should('be.visible').click();
+  cy.contains('App Bundle:').should('be.visible');
 
   cy.typeValue('Name', repoName);
   cy.clickButton("Next");
@@ -926,11 +915,7 @@ Cypress.Commands.add('addFleetGitRepo', (repoName, repoUrl, branch, paths, targe
 Cypress.Commands.add('removeFleetGitRepo', (repoName, workspace = 'fleet-local') => {
   cy.checkFleetGitRepoActive(repoName, workspace);
   // Click on the actions menu and select 'Delete' from the menu
-  if (isRancherManagerVersion('>=2.12')) {
-    cy.getBySel('masthead-action-menu').should('be.visible').click();
-  } else {
-    cy.get('.actions .btn.actions').click();
-  }
+  cy.getBySel('masthead-action-menu').should('be.visible').click();
   cy.get('.icon.group-icon.icon-trash').click({ctrlKey: true}); // this will prevent to display confirmation dialog
   cy.wait(2000); // needed for 2.12
   cy.goToFleetGitRepos(workspace);
@@ -942,11 +927,7 @@ Cypress.Commands.add('removeFleetGitRepo', (repoName, workspace = 'fleet-local')
 Cypress.Commands.add('forceUpdateFleetGitRepo', (repoName, workspace) => {
   cy.checkFleetGitRepoActive(repoName, workspace);
   // Click on the actions menu and select 'Force Update' from the menu
-  if (isRancherManagerVersion('>=2.12')) {
-    cy.getBySel('masthead-action-menu').should('be.visible').click();
-  } else {
-    cy.get('.actions .btn.actions').click();
-  }
+  cy.getBySel('masthead-action-menu').should('be.visible').click();
   // On prime 2.13.0-alpha4 the refresh icon selector didn't change but parent <div> must be clicked
   cy.get('.icon.group-icon.icon-refresh').parent().click();
   cy.clickButton('Update')
@@ -956,8 +937,7 @@ Cypress.Commands.add('forceUpdateFleetGitRepo', (repoName, workspace) => {
 Cypress.Commands.add('goToFleetGitRepos', (workspace = 'fleet-local') => {
   // Go to 'Continuous Delivery' > 'Git Repos'
   cy.burgerMenuOperate('open');
-  const gitRepoMenuLocation = isRancherManagerVersion('>=2.12') ? ['Continuous Delivery', 'Resources', 'Git Repos'] : ['Continuous Delivery', 'Git Repos'];
-  cy.accesMenuSelection(gitRepoMenuLocation);
+  cy.accesMenuSelection(['Continuous Delivery', 'Resources', 'Git Repos']);
   cy.getBySel('masthead-create').should('be.visible');
   // Change the workspace using the dropdown on the top bar
   cy.getBySel('workspace-switcher').click();
@@ -972,11 +952,7 @@ Cypress.Commands.add('checkFleetGitRepoActive', (repoName, workspace) => {
   cy.url().should("include", "fleet/fleet.cattle.io.gitrepo/" + workspace + "/" + repoName)
   // Ensure there are no errors after waiting for a few seconds
   cy.wait(5000);
-  if (isRancherManagerVersion('>=2.12')) {
-    cy.get('.badge-state', {timeout: 3000}).should("not.contain", "Error");
-  } else {
-    cy.get('.badge-state', {timeout: 3000}).should("not.contain", "Err Applied");
-  }
+  cy.get('.badge-state', {timeout: 10000}).should("not.contain", "Error");
 })
 
 // Fleet namespace toggle
@@ -1069,6 +1045,37 @@ Cypress.Commands.add('deleteKubernetesResource', (clusterName = 'local', resourc
   cy.wait(2000); // needed for 2.12
   cy.typeInFilter(resourceName);
   cy.getBySel('sortable-cell-0-1', {timeout: 60000}).should('not.exist');
+  cy.namespaceReset();
+})
+
+Cypress.Commands.add('editKubernetesResource', (options) => {
+  cy.exploreCluster(options.clusterName);
+  cy.setNamespace(options.namespace);
+  // using `cy.clickNavMenu()` does not always work here, so we explicitly wait after clicking a label.
+  options.resourcePath.forEach(label => {
+    cy.get('.nav').contains(label).click()
+    cy.wait(1000);
+  });
+
+  cy.typeInFilter(options.name);
+  cy.getBySel('sortable-cell-0-1').should('exist');
+  cy.viewport(1920, 1080);
+  cy.getBySel('sortable-table-0-action-button').click();
+  cy.get('div.dropdownTarget').contains('Edit YAML').click();
+
+  if (options.modifyYAMLOperation) {
+    cy.get('.CodeMirror').then((editor) => {
+      // @ts-expect-error known error with CodeMirror
+      let text = yaml.load(editor[0].CodeMirror.getValue());
+      // @ts-ignore
+      options.modifyYAMLOperation(text);
+      // @ts-expect-error known error with CodeMirror
+      editor[0].CodeMirror.setValue(yaml.dump(text));
+    });
+  }
+  cy.clickButton('Save');
+  // ensure there was no error with Editing the YAML.
+  cy.getBySel('error-banner0', {timeout: 3000}).should('not.exist');
   cy.namespaceReset();
 })
 
@@ -1329,6 +1336,33 @@ Cypress.Commands.add('createDockerAuthSecret', () => {
     data = data.replace(/replace_cluster_docker_auth_password/, vars.dockerAuthPasswordBase64)
     cy.importYAML(data, vars.capiClustersNS)
   })
+});
+
+Cypress.Commands.add('checkExternalFleetAnnotation', (clusterName, required = true) => {
+  cy.searchCluster(clusterName);
+  cy.getBySel('sortable-cell-0-1').click();
+  cy.getBySel('related').click();
+  cy.get('a[href*="management.cattle.io.cluster/c-"]').click();
+  const annotation = 'provisioning.cattle.io/externally-managed: \'true\'';
+
+  cy.get('.CodeMirror').then((editor) => {
+    // @ts-expect-error known error with CodeMirror
+    const text = editor[0].CodeMirror.getValue();
+    if (required) {
+      expect(text).to.include(annotation);
+    } else {
+      expect(text).to.not.include(annotation);
+    }
+  });
+});
+
+// TODO: Add assertFunc(text: string) param
+Cypress.Commands.add('viewCAPIClusterYAML', (clusterName) => {
+  // Check CAPI cluster using its name
+  cy.checkCAPICluster(clusterName);
+  // click the three-dots menu and click View YAML
+  cy.getBySel('sortable-table-0-action-button').click();
+  cy.contains('View YAML').click();
 });
 
 export function matchAndWaitForProviderReadyStatus(

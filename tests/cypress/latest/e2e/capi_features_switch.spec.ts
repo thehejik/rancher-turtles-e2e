@@ -1,7 +1,7 @@
-import '~/support/commands';
-import {capiNamespace, getClusterName, isRancherManagerVersion, turtlesNamespace} from '~/support/utils';
-import {capdResourcesCleanup, capiClusterDeletion} from '~/support/cleanup_support';
-import {vars} from '~/support/variables';
+import '../support/commands';
+import {capiNamespace, getClusterName, isRancherManagerVersion, turtlesNamespace} from '../support/utils';
+import {capdResourcesCleanup, capiClusterDeletion} from '../support/cleanup_support';
+import {vars} from '../support/variables';
 
 Cypress.config();
 describe('Switch CAPI Feature Flags', {tags: '@switch'}, () => {
@@ -82,7 +82,10 @@ describe('Switch CAPI Feature Flags', {tags: '@switch'}, () => {
 
     context('[SWITCH-TO-CAPI-PROVISIONING]', () => {
       it('Uninstall Rancher Turtles Providers chart', () => {
-        cy.deleteKubernetesResource('local', ['Apps', 'Installed Apps'], 'rancher-turtles-providers', turtlesNamespace);
+        // Uninstall Rancher Turtles Providers chart
+        cy.deleteKubernetesResource('local', ['Apps', 'Installed Apps'], vars.turtlesProvidersHelmApp, turtlesNamespace);
+        cy.contains(new RegExp(`"${vars.turtlesProvidersHelmApp}"` + ' uninstalled'), {timeout: timeout}).should('be.visible');
+        cy.get('.closer').click();
       });
 
       it('Enable embedded-cluster-api and disable turtles', () => {

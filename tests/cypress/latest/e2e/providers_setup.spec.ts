@@ -11,18 +11,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import '~/support/commands';
+import '../support/commands';
 import {
   capiNamespace,
+  isUseCAAPFSupported,
   isCypressTag,
   isRancherManagerVersion,
   isTurtlesDevChart,
   isUpgrade,
   providersChartNeedsStgRegistry,
   turtlesNamespace,
-} from '~/support/utils';
-import {vars} from '~/support/variables';
-import {matchAndWaitForProviderReadyStatus} from "~/support/commands";
+} from '../support/utils';
+import {vars} from '../support/variables';
+import {matchAndWaitForProviderReadyStatus} from "../support/commands";
 
 type BuildType = 'prod-v2.13' | 'prod-v2.14' | 'dev-v2.13' | 'dev-v2.14';
 const buildType = determineBuildType();
@@ -71,7 +72,7 @@ describe('Enable CAPI Providers', () => {
     },
     'prod-v2.14': {
       capi: 'v1.12.2',
-      rke2: 'v0.24.1',
+      rke2: 'v0.24.3',
       kubeadm: 'v1.12.2',
       fleet: 'v0.14.1',
       vsphere: 'v1.15.2',
@@ -91,7 +92,7 @@ describe('Enable CAPI Providers', () => {
     },
     'dev-v2.14': {
       capi: 'v1.12.2',
-      rke2: 'v0.24.2',
+      rke2: 'v0.24.3',
       kubeadm: 'v1.12.2',
       fleet: 'v0.14.1',
       vsphere: 'v1.15.2',
@@ -126,6 +127,36 @@ describe('Enable CAPI Providers', () => {
       cy.addFleetGitRepo('helm-ops', vars.turtlesRepoUrl, vars.classBranch, 'examples/applications/', vars.capiClustersNS);
     })
 
+    // This feature gate needs to be enabled for >=2.14.1
+    if (isUseCAAPFSupported) {
+      it('Enable turtles feature gate: use-caapf', () => {
+        const enableFeatureGate = (text: any) => {
+          // to disable the feature flag, simply removing this data won't be enough. The value must be reset to "false".
+          text.data["rancher-turtles"] = `{"features": {"use-caapf": {"enabled": "true"}}}`;
+        }
+        cy.editKubernetesResource({
+          name: "rancher-config",
+          clusterName: "local",
+          resourcePath: ["More Resources", "Core", "ConfigMaps"],
+          namespace: "cattle-system",
+          modifyYAMLOperation: enableFeatureGate
+        });
+
+        // Ensure the turtles deployment has the feature gate enabled
+        cy.setNamespace(turtlesNamespace)
+        cy.clickNavMenu(["Workloads", "Deployments"]);
+        cy.typeInFilter('rancher-turtles-controller-manager');
+        // We need to explicitly wait for the turtles controller deployment to restart
+        cy.getBySel('sortable-cell-0-0').contains('In Progress', {timeout: 60000});
+        cy.getBySel('sortable-cell-0-0').contains('Active', {timeout: 30000});
+        cy.getBySel('sortable-table-0-action-button').click();
+        cy.get('div.dropdownTarget').contains('Show Configuration').click();
+        cy.getBySel('btn-yaml-tab').click();
+        cy.get('.CodeMirror-code').contains("use-caapf=true");
+        cy.clickButton('Close');
+        cy.namespaceReset();
+      });
+    }
     it('Create Providers using Charts', () => {
       const providerSelectionFunction = (text: any) => {
         // @ts-ignore
@@ -137,6 +168,10 @@ describe('Enable CAPI Providers', () => {
         text.providers.controlplaneKubeadm.enabled = true;
         // @ts-ignore
         text.providers.controlplaneKubeadm.enableAutomaticUpdate = true;
+
+        // fleet-addon needs to be explicitly enabled for >=2.14.1.
+        // @ts-ignore
+        text.providers.addonFleet.enabled = true;
 
         if (isCypressTag('@short') || isCypressTag('@upgrade') || isCypressTag('@switch')) {
             // @ts-ignore
@@ -225,26 +260,6 @@ describe('Enable CAPI Providers', () => {
         }
       });
     })
-
-    xit('Custom Fleet addon config', () => {
-      // Skipped as we are unable to install Monitoring app on clusters without cattle-fleet-system namespace
-      // Ref. https://github.com/rancher/fleet/issues/3521
-      // Allows Fleet addon to be installed on specific clusters only
-
-      const clusterName = 'local';
-      const resourceKind = 'configMap';
-      const resourceName = 'fleet-addon-config';
-      const namespace = turtlesNamespace;
-      const patch = {
-        data: {
-          manifests: {
-            isNestedIn: true,
-            spec: {cluster: {selector: {matchLabels: {cni: 'by-fleet-addon-kindnet'}}}}
-          }
-        }
-      };
-       cy.patchYamlResource(clusterName, namespace, resourceKind, resourceName, patch);
-    });
   });
 
   context('Docker provider', {tags: ['@short', '@upgrade', '@switch']}, () => {

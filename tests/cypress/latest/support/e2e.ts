@@ -16,7 +16,7 @@ import './commands';
 import yaml from 'js-yaml';
 import './capz_support';
 import './cleanup_support';
-import {ChartInstallExtraOptions, Cluster} from './structs';
+import {ChartInstallExtraOptions, Cluster, EditKubernetesResourceOptions} from './structs';
 import {register as registerCypressGrep} from '@cypress/grep'
 
 // This ensures the qase() function exists globally before ANY spec file loads
@@ -85,11 +85,14 @@ declare global {
       verifyCAPIProviderImage(providerNamespace: string): Chainable<Element>;
       setCAPIFeature(featureName: string, featureValue: string): Chainable<Element>;
       createDockerAuthSecret(): Chainable<Element>;
+      checkExternalFleetAnnotation(clustername: string, required?: boolean): Chainable<Element>;
+      viewCAPIClusterYAML(clustername: string): Chainable<Element>;
       // Functions declared in capz_support.js
       createAzureClusterIdentity(clientID: string, tenantID: string, clientSecret: string): Chainable<Element>;
       createAzureASOCredential(clientID: string, tenantID: string, clientSecret: string, subscriptionID: string): Chainable<Element>;
       deleteKubernetesResource(clusterName: string, resourcePath: string[], resourceName: string, namespace?: string): Chainable<Element>;
 
+      editKubernetesResource(options: EditKubernetesResourceOptions): Chainable<Element>;
       checkKubernetesResource(clusterName: string, resourcePath: string[], resourceName: string, shouldExist: boolean, namespace: string, timeout?: number): Chainable<Element>;
     }
   }

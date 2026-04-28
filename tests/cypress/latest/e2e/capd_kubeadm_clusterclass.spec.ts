@@ -11,11 +11,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-import '~/support/commands';
-import * as cypressLib from '@rancher-ecp-qa/cypress-library';
-import {getClusterName, isAPIv1beta1, isRancherManagerVersion, skipClusterDeletion} from '~/support/utils';
-import {capiClusterDeletion, importedRancherClusterDeletion} from "~/support/cleanup_support";
-import {vars} from '~/support/variables';
+import '../support/commands';
+import {getClusterName, isAPIv1beta1, isRancherManagerVersion, skipClusterDeletion} from '../support/utils';
+import {capiClusterDeletion, importedRancherClusterDeletion} from "../support/cleanup_support";
+import {vars} from '../support/variables';
 
 Cypress.config();
 describe('Import CAPD Kubeadm Class-Cluster', {tags: '@short'}, () => {
@@ -101,34 +100,18 @@ describe('Import CAPD Kubeadm Class-Cluster', {tags: '@short'}, () => {
       })
     }
 
-    // fleet-addon provider checks (for rancher dev/2.10.3 and up)
-    qase(42,
-      // skip due to turtles/issues/1329
-      xit('Check if cluster is registered in Fleet only once', () => {
-        cypressLib.accesMenu('Continuous Delivery');
-        cy.contains('Dashboard').should('be.visible');
-        cypressLib.accesMenu('Clusters');
-        cy.fleetNamespaceToggle('fleet-default');
-        // Verify the cluster is registered and Active
-        const rowNumber = 0
-        cy.verifyTableRow(rowNumber, 'Active', clusterName);
-        // Make sure there is only one registered cluster in fleet (there should be one table row)
-        cy.get('table.sortable-table').find(`tbody tr[data-testid="sortable-table-${rowNumber}-row"]`).should('have.length', 1);
-      })
-    )
-
-    // Skip until https://github.com/rancher/turtles/issues/1880 is fixed
+    // Ref: https://github.com/rancher/turtles/issues/1880
     qase(43,
-      xit('Check if annotation for externally-managed cluster is set', () => {
-        cy.searchCluster(clusterName)
-        // click the three-dots menu and click View YAML
-        cy.getBySel('sortable-table-0-action-button').click();
-        cy.contains('View YAML').click();
-        const annotation = 'provisioning.cattle.io/externally-managed: \'true\'';
+      it('Check the fleet-addon annotation and finalizer is set on clusters', () => {
+        // Check the externally-managed annotation is set on Rancher management cluster
+        cy.checkExternalFleetAnnotation(clusterName);
+
+        // Check the finalizer is set on CAPI cluster
+        cy.viewCAPIClusterYAML(clusterName);
         cy.get('.CodeMirror').then((editor) => {
           // @ts-expect-error known error with CodeMirror
           const text = editor[0].CodeMirror.getValue();
-          expect(text).to.include(annotation);
+          expect(text).to.include('fleet.addons.cluster.x-k8s.io');
         });
       })
     )
