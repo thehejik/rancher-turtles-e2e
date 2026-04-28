@@ -1,4 +1,4 @@
-name: "Update Logging stack in Workflow"
+name: "[updatecli] Bump Logging stack"
 pipelineid: "logging_stack_update"
 
 sources:

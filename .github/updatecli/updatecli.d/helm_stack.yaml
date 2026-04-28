@@ -1,4 +1,4 @@
-name: "Update Helm stack in Workflow"
+name: "[updatecli] Bump Helm stack"
 pipelineid: "helm_v3_stack_update"
 
 sources:
