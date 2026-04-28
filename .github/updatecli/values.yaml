@@ -23,11 +23,11 @@ scm:
   # Repository settings (recommended to fill for CI / automation):
   owner: "rancher"
   repository: "rancher-turtles-e2e"
-  username: "github-actions"
-  user: "Github Action bot"
-  email: updatecli-bot@example.com
+  username: "updatecli[bot]"
+  user: "updatecli[bot]"
+  email: updatecli[bot]@users.noreply.github.com
   branch: main
   labels:
-    - "updatecli"
+    - "dependencies"
 
 # Example: to disable SCM during local dry-runs, set `scm.enabled: false`.

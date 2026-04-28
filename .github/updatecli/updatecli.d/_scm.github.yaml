@@ -15,9 +15,9 @@ actions:
       #{{ if .automerge }}
       automerge: {{.automerge }}
       # {{ end }}
-      # {{ if .labels }}
+      # {{ if .scm.labels }}
       labels:
-        # {{ range .labels }}
+        # {{ range .scm.labels }}
         - '{{ . }}'
         # {{ end }}
       # {{ end }}
