@@ -15,7 +15,7 @@ scm:
   # environment variable. Set this to the env var name (e.g. GITHUB_TOKEN).
   # Alternatively, you may set `token` below to provide a literal token
   # (not recommended for checked-in files).
-  env_token: UPDATECLI_GITHUB_TOKEN
+  env_token: GITHUB_TOKEN
 
   # Optional: provide a literal token here (overrides env_token). Avoid committing secrets.
   # token: "ghp_xxx"
@@ -23,9 +23,9 @@ scm:
   # Repository settings (recommended to fill for CI / automation):
   owner: "thehejik"
   repository: "rancher-turtles-e2e"
-  username: "updatecli[bot]"
-  user: "updatecli[bot]"
-  email: updatecli[bot]@users.noreply.github.com
+  #username: "updatecli[bot]"
+  #user: "updatecli[bot]"
+  #email: updatecli[bot]@users.noreply.github.com
   branch: main
   labels:
     - "dependencies"
