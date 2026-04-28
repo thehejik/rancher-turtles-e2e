@@ -8,7 +8,7 @@ sources:
     spec:
       owner: "helm"
       repository: "helm"
-      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      token: '{{ requiredEnv "UPDATECLI_GITHUB_TOKEN" }}'
       versionfilter:
         kind: "semver"
         pattern: "^3"
@@ -30,7 +30,7 @@ sources:
     spec:
       owner: "helm"
       repository: "chartmuseum"
-      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      token: '{{ requiredEnv "UPDATECLI_GITHUB_TOKEN" }}'
 
   chartmuseumSha:
     name: "Get ChartMuseum SHA256"
@@ -47,7 +47,7 @@ sources:
     spec:
       owner: "chartmuseum"
       repository: "helm-push"
-      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      token: '{{ requiredEnv "UPDATECLI_GITHUB_TOKEN" }}'
     transformers:
       - trimprefix: "v"
 

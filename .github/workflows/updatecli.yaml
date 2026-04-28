@@ -23,5 +23,5 @@ jobs:
       - name: Apply
         run: "updatecli pipeline apply --config .github/updatecli/updatecli.d/ --values .github/updatecli/values.yaml"
         env:
-          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          GITHUB_ACTOR: "${{ github.actor }}"
+          UPDATECLI_GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          UPDATECLI_ACTOR: "${{ github.actor }}"

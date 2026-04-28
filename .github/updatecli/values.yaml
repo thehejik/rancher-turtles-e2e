@@ -15,7 +15,7 @@ scm:
   # environment variable. Set this to the env var name (e.g. GITHUB_TOKEN).
   # Alternatively, you may set `token` below to provide a literal token
   # (not recommended for checked-in files).
-  env_token: GITHUB_TOKEN
+  env_token: UPDATECLI_GITHUB_TOKEN
 
   # Optional: provide a literal token here (overrides env_token). Avoid committing secrets.
   # token: "ghp_xxx"

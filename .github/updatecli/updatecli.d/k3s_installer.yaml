@@ -8,7 +8,7 @@ sources:
     spec:
       owner: "k3s-io"
       repository: "k3s"
-      token: '{{ requiredEnv "GITHUB_TOKEN" }}'
+      token: '{{ requiredEnv "UPDATECLI_GITHUB_TOKEN" }}'
       versionfilter:
         kind: "semver"
         pattern: "^1.35"
