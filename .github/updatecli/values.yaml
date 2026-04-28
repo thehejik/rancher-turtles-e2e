@@ -21,7 +21,7 @@ scm:
   # token: "ghp_xxx"
 
   # Repository settings (recommended to fill for CI / automation):
-  owner: "rancher"
+  owner: "thehejik"
   repository: "rancher-turtles-e2e"
   username: "updatecli[bot]"
   user: "updatecli[bot]"
