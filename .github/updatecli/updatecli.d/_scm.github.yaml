@@ -47,4 +47,5 @@ scms:
       # {{ if .scm.url }}
       url: '{{ .scm.url }}'
       # {{ end }}
+      force: true
 # {{ end }}
