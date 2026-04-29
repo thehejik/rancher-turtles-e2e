@@ -1,5 +1,5 @@
 scm:
-  enabled: true
+  enabled: false
   kind: github
   env_token: UPDATECLI_GITHUB_TOKEN
   owner: "rancher"
