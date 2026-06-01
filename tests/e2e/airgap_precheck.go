@@ -68,24 +68,56 @@ type ClusterctlConfig struct {
 
 // Quick helper to fetch raw web text strings
 func fetchURL(url string) ([]byte, error) {
-	resp, err := http.Get(url)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bad status: %d", resp.StatusCode)
-	}
-	return io.ReadAll(resp.Body)
+    resp, err := http.Get(url)
+	Expect(err).ToNot(HaveOccurred(), "Failed to fetch URL: %s", url)
+    defer resp.Body.Close()
+	Expect(resp.StatusCode).To(Equal(http.StatusOK), "Error, status %d when fetching URL: %s", resp.StatusCode, url)
+    return io.ReadAll(resp.Body)
 }
 
-var _ = Describe("E2E - Initial Airgap Precheck", Label("airgap"), func() {
+var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
+	var turtlesVersion string
+	It("Check if RANCHER_VERSION is a prime release", func() {
+		Expect(rancherChannel).To(ContainSubstring("prime"), "RANCHER_VERSION does not indicate a prime release (missing 'prime' prefix) - skipping airgap precheck")
+		// To make it fail use --fail-fast flag when calling ginkgo
+	})
+	It("Get turtles version defined in build.yaml for given rancher release", func() {
+		body, _ := fetchURL(fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/build.yaml", rancherVersion))
+		Expect(string(body)).To(Not(BeEmpty()), "Failed to fetch build.yaml content")
+
+		// Load the build.yaml as yaml object and get turtlesChartVersion value
+		var buildConfig RancherBuild
+		err := yaml.Unmarshal(body, &buildConfig)
+		Expect(err).ToNot(HaveOccurred(), "Failed to parse build.yaml content")
+		turtlesChartVersion := buildConfig.TurtlesVersion
+		Expect(turtlesChartVersion).To(Not(BeEmpty()), "turtlesVersion not found in build.yaml")
+		GinkgoWriter.Printf("🐢 Detected turtlesChartVersion: %s\n", turtlesChartVersion)
+
+		// Strip everything before "up" - e.g. "109.0.2+up0.26.2-rc.3" -> "v0.26.2-rc.3"
+		parts := strings.Split(turtlesChartVersion, "+up")
+		Expect(parts).To(HaveLen(2), "Unexpected turtlesVersion format (missing '+up' separator)")
+		turtlesVersion = "v" + strings.TrimPrefix(parts[1], "v")
+		GinkgoWriter.Printf("🐢 Normalized Turtles Version: %s\n", turtlesVersion)
+	})
+	It("Get provider component versions from turtles config-prime.yaml for given turtles version", func() {
+		body, _ := fetchURL(fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/internal/controllers/clusterctl/config-prime.yaml", turtlesVersion))
+		Expect(string(body)).To(Not(BeEmpty()), "Failed to fetch config-prime.yaml content")
+		var cm TurtlesConfigMap
+		err := yaml.Unmarshal(body, &cm)
+		Expect(err).ToNot(HaveOccurred(), "Failed to parse config-prime.yaml content")
+		Expect(cm.Data.Clusterctl).To(Not(BeEmpty()), "clusterctl data not found in config-prime.yaml")
+		GinkgoWriter.Printf("Content of clusterctl.yaml:\n%s\n", cm.Data.Clusterctl)
+	})
+
+
+	//fmt.Printf("Body content:\n%s\n", string(body))
+
 	rawVersion := strings.TrimSpace(os.Getenv("RANCHER_VERSION"))
 	if rawVersion == "" {
 		fmt.Println("❌ Missing RANCHER_VERSION environment variable")
 		os.Exit(1)
 	}
-
+		//fmt.Printf("Body content:\n%s\n", string(body))
 	// 1. Parse RANCHER_VERSION and strip optional prime channel prefix.
 	// Supported examples:
 	// - prime-rc/2.14.2-rc3
@@ -102,7 +134,7 @@ var _ = Describe("E2E - Initial Airgap Precheck", Label("airgap"), func() {
 	fmt.Printf("🔍 Targeted Rancher Prime Release: %s\n", rancherVersion)
 
 	// 2. Fetch Rancher build.yaml to find turtlesVersion tag
-	buildURL := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/%s/build.yaml", rancherVersion)
+	buildURL := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/build.yaml", rancherVersion)
 	buildBytes, err := fetchURL(buildURL)
 	if err != nil {
 		fmt.Printf("❌ Failed to fetch build.yaml: %v\n", err)
@@ -158,4 +190,4 @@ var _ = Describe("E2E - Initial Airgap Precheck", Label("airgap"), func() {
 			// elements to ping the registry directly if you expand the tool later.
 		}
 	}
-}
+})

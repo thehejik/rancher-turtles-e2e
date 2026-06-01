@@ -22,6 +22,9 @@ e2e-install-rancher: deps
 e2e-upgrade-rancher: deps
 	ginkgo --label-filter upgrade -r -v ./e2e
 
+e2e-airgap-precheck: deps
+	ginkgo --fail-fast --label-filter airgap -r -v ./e2e
+
 start-cypress-tests:
 	@./scripts/start-cypress-tests
 

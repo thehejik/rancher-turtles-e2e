@@ -7,6 +7,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.28.3
 	github.com/onsi/gomega v1.40.0
 	github.com/rancher-sandbox/ele-testhelpers v0.0.0-20260120145517-a7fb4a0438cf
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -27,7 +28,6 @@ require (
 	golang.org/x/text v0.36.0 // indirect
 	golang.org/x/tools v0.44.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	libvirt.org/libvirt-go-xml v7.4.0+incompatible // indirect
 )
 
