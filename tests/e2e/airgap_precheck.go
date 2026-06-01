@@ -38,12 +38,12 @@ var neededAirgapImageNames = []string{
 	"rancher/cluster-api-provider-rke2-bootstrap",
 	"rancher/cluster-api-provider-rke2-controlplane",
 	"rancher/cluster-api-vsphere-controller",
-	//"rancher/azureserviceoperator", // TODO the version of ASO is not defined anywhere but in azure components file
+	"rancher/azureserviceoperator", // TODO the version of ASO is not defined anywhere but in azure components file
 	"rancher/turtles",
 	"rancher/kubeadm-bootstrap-controller",
 	"rancher/kubeadm-control-plane-controller",
 	// docker image is not released within rancher org
-	"rancher/charts/rancher-turtles-providers", // TODO use the very same version as the turtles itself
+	"rancher/charts/rancher-turtles-providers", // This helm chart is concidered as a image
 }
 
 var neededAirgapComponentNames = []string{
@@ -83,10 +83,11 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 		Expect(yaml.Unmarshal(body, &build)).To(Succeed())
 		Expect(build.TurtlesVersion).ToNot(BeEmpty(), "turtlesVersion missing in build.yaml")
 
-		// Normalize version token (e.g., 109.0.2+up0.26.2 -> v0.26.2)
+		// Normalize version (e.g., 109.0.2+up0.26.2 -> v0.26.2)
+		turtlesChartVersion := build.TurtlesVersion
+		versionMap["rancher-turtles-providers"] = turtlesChartVersion // the version should be the same as the turtles chart version
 		parts := strings.Split(build.TurtlesVersion, "+up")
 		Expect(parts).To(HaveLen(2), "Unexpected turtlesVersion format (missing '+up' separator)")
-
 		turtlesVersion = "v" + strings.TrimPrefix(parts[1], "v")
 		versionMap["turtles"] = turtlesVersion
 		GinkgoWriter.Printf("🐢 Normalized Turtles Version: %s\n", turtlesVersion)
@@ -138,18 +139,19 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 
 			switch {
 			case img == "rancher/turtles":
-				//version = versionMap["turtles"]
-				version = "doesnotexist"
+				version = versionMap["turtles"]
 
-			case img == "rancher/rancher-turtles-providers":
-				version = versionMap["cluster-api"]
+			case img == "rancher/charts/rancher-turtles-providers":
+				// This is actually a helm chart but can be concidered as a image for the later checks
+				// We need to sanitze the version string to match the actual OCI tag format used in the registry, which replaces "+" with "_"
+				version = strings.ReplaceAll(versionMap["rancher-turtles-providers"], "+", "_")
 
 			case img == "rancher/cluster-api-controller":
 				version = versionMap["cluster-api"]
 
 			case img == "rancher/azureserviceoperator":
 				// TODO Inherit Azure infrastructure version context directly is not the way
-				version = versionMap["azure"]
+				// version = versionMap["azure"]
 
 			case strings.Contains(img, "cluster-api-addon-provider-fleet"):
 				version = versionMap["rancher-fleet"]
@@ -237,4 +239,22 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 			GinkgoWriter.Printf("✅ Verified OCI %s existence: %s\n", item.Type, fullyQualifiedRef)
 		}
 	})
+
+	It("Step 8: Verify that all images are listed in rancher-images.txt", func() {
+		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/rancher-images.txt", rancherVersion)
+		body := fetchRaw(url)
+		imagesList := strings.Split(string(body), "\n")
+		for _, item := range airgapCollection {
+			if item.Type != "ContainerImage" {
+				continue
+			}
+			imageRef := fmt.Sprintf("rancher/%s:%s", strings.TrimPrefix(item.Name, "rancher/"), item.Version)
+			Expect(imagesList).To(ContainElement(imageRef), "Image %s is missing from rancher-images.txt", imageRef)
+			GinkgoWriter.Printf("✅ Verified image listed in rancher-images.txt: %s\n", imageRef)
+		}
+	})
+
+	It("Step 9: Verify that CLUSTER_API_CONTROLLER_TAG is set to correct value", func() {
+	})
+
 })
