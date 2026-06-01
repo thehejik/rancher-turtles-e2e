@@ -1,27 +1,34 @@
-/// ###  airgap check whether images and components are available on registries for prime prime-rc and prime-alpha
-/// ###
-/// ### Initial check before we start to pull everything to AG env - this is fast check which will prevent
-/// ### - FIrst get a list of provider versions in the given version / build - do not do that for community nor head builds - parse RANCHER_VERSION and strip channel/version where channel can be only prime[-rc|-alpha] and version contains two dots like 2.14.2[-alphaX|-rcY]
-/// ### - from the used rancher version get know which turtles should be installed - use the version as a tag - look for turtlesVersion in https://github.com/rancher/rancher/blob/v2.14.2-alpha7/build.yaml and https://github.com/rancher/rancher/blob/v2.14.2-alpha7/scripts/package-env#L16 for CLUSTER_API_CONTROLLER_TAG (this is not needed, as the cluster-api is written but we need to be sure it matches with what is written in providers (see bellow)
-/// ### - checkout turtles repo and use the version as a tag for the release turtlesVersion: 109.0.2+up0.26.2[-rc.3] - you have to strip what is after "up" - open like https://github.com/rancher/turtles/blob/v0.26.2-rc.3/internal/controllers/clusterctl/config-prime.yaml to get current provider versions list - store all provider names and their versions
-/// ### - open rancher-images.txt and check whether the images are listed
-/// ### - check stgregistry and/or registry and validate the images and components (manifests) are available with the given tag.
-
 package e2e_test
 
 import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
 	"gopkg.in/yaml.v3"
+	"github.com/google/go-containerregistry/pkg/crane"
+	"github.com/google/go-containerregistry/pkg/authn"
 )
 
+// Global Struct Definition
+type AirgapComponent struct {
+	Name    string
+	Type    string
+	Version string
+}
+
+// State variables shared across It blocks
+var (
+	turtlesVersion   string
+	versionMap       = make(map[string]string)
+	airgapCollection []AirgapComponent
+)
+
+// Shared static lists
 var neededAirgapImageNames = []string{
 	"rancher/cluster-api-addon-provider-fleet",
 	"rancher/cluster-api-aws-controller",
@@ -31,163 +38,203 @@ var neededAirgapImageNames = []string{
 	"rancher/cluster-api-provider-rke2-bootstrap",
 	"rancher/cluster-api-provider-rke2-controlplane",
 	"rancher/cluster-api-vsphere-controller",
-	"rancher/azureserviceoperator",
+	//"rancher/azureserviceoperator", // TODO the version of ASO is not defined anywhere but in azure components file
 	"rancher/turtles",
 	"rancher/kubeadm-bootstrap-controller",
 	"rancher/kubeadm-control-plane-controller",
+	// docker image is not released within rancher org
+	"rancher/charts/rancher-turtles-providers", // TODO use the very same version as the turtles itself
 }
 
 var neededAirgapComponentNames = []string{
 	"rancher/cluster-api-aws-controller-components",
 	"rancher/cluster-api-addon-provider-fleet-components",
 	"rancher/cluster-api-azure-controller-components",
-	"rancher/cluster-api-controller-components", // core, kubeadm and capd providers
+	"rancher/cluster-api-controller-components", // contains manifests for core cluster-api, kubeadm and capd providers
 	"rancher/cluster-api-gcp-controller-components",
-	"rancher/cluster-api-provider-metal3-components", // This is from outside turtles, we don't support that
 	"rancher/cluster-api-provider-rke2-components",
 	"rancher/cluster-api-vsphere-controller-components",
 }
 
-// Structural mappings for Rancher & Turtles YAML definitions
-type RancherBuild struct {
-	TurtlesVersion string `yaml:"turtlesVersion"`
-}
-
-type TurtlesConfigMap struct {
-	Data struct {
-		Clusterctl string `yaml:"clusterctl.yaml"`
-	} `yaml:"data"`
-}
-
-type ClusterctlConfig struct {
-	Providers []struct {
-		Name string `yaml:"name"`
-		URL  string `yaml:"url"`
-	} `yaml:"providers"`
-}
-
-// Quick helper to fetch raw web text strings
-func fetchURL(url string) ([]byte, error) {
-    resp, err := http.Get(url)
-	Expect(err).ToNot(HaveOccurred(), "Failed to fetch URL: %s", url)
-    defer resp.Body.Close()
-	Expect(resp.StatusCode).To(Equal(http.StatusOK), "Error, status %d when fetching URL: %s", resp.StatusCode, url)
-    return io.ReadAll(resp.Body)
+// Simple HTTP fetcher helper
+func fetchRaw(url string) []byte {
+	resp, err := http.Get(url)
+	Expect(err).ToNot(HaveOccurred(), "Failed to download %s", url)
+	defer resp.Body.Close()
+	Expect(resp.StatusCode).To(Equal(http.StatusOK), "Non-200 status for %s", url)
+	body, err := io.ReadAll(resp.Body)
+	Expect(err).ToNot(HaveOccurred())
+	return body
 }
 
 var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
-	var turtlesVersion string
-	It("Check if RANCHER_VERSION is a prime release", func() {
+
+	It("Step 1: Check if RANCHER_VERSION is a prime release", func() {
 		Expect(rancherChannel).To(ContainSubstring("prime"), "RANCHER_VERSION does not indicate a prime release (missing 'prime' prefix) - skipping airgap precheck")
-		// To make it fail use --fail-fast flag when calling ginkgo
 	})
-	It("Get turtles version defined in build.yaml for given rancher release", func() {
-		body, _ := fetchURL(fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/build.yaml", rancherVersion))
-		Expect(string(body)).To(Not(BeEmpty()), "Failed to fetch build.yaml content")
 
-		// Load the build.yaml as yaml object and get turtlesChartVersion value
-		var buildConfig RancherBuild
-		err := yaml.Unmarshal(body, &buildConfig)
-		Expect(err).ToNot(HaveOccurred(), "Failed to parse build.yaml content")
-		turtlesChartVersion := buildConfig.TurtlesVersion
-		Expect(turtlesChartVersion).To(Not(BeEmpty()), "turtlesVersion not found in build.yaml")
-		GinkgoWriter.Printf("🐢 Detected turtlesChartVersion: %s\n", turtlesChartVersion)
+	It("Step 2: Get Turtles version defined in build.yaml for given rancher release", func() {
+		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/build.yaml", rancherVersion)
+		body := fetchRaw(url)
 
-		// Strip everything before "up" - e.g. "109.0.2+up0.26.2-rc.3" -> "v0.26.2-rc.3"
-		parts := strings.Split(turtlesChartVersion, "+up")
+		var build struct {
+			TurtlesVersion string `yaml:"turtlesVersion"`
+		}
+		Expect(yaml.Unmarshal(body, &build)).To(Succeed())
+		Expect(build.TurtlesVersion).ToNot(BeEmpty(), "turtlesVersion missing in build.yaml")
+
+		// Normalize version token (e.g., 109.0.2+up0.26.2 -> v0.26.2)
+		parts := strings.Split(build.TurtlesVersion, "+up")
 		Expect(parts).To(HaveLen(2), "Unexpected turtlesVersion format (missing '+up' separator)")
+
 		turtlesVersion = "v" + strings.TrimPrefix(parts[1], "v")
+		versionMap["turtles"] = turtlesVersion
 		GinkgoWriter.Printf("🐢 Normalized Turtles Version: %s\n", turtlesVersion)
 	})
-	It("Get provider component versions from turtles config-prime.yaml for given turtles version", func() {
-		body, _ := fetchURL(fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/internal/controllers/clusterctl/config-prime.yaml", turtlesVersion))
-		Expect(string(body)).To(Not(BeEmpty()), "Failed to fetch config-prime.yaml content")
-		var cm TurtlesConfigMap
-		err := yaml.Unmarshal(body, &cm)
-		Expect(err).ToNot(HaveOccurred(), "Failed to parse config-prime.yaml content")
-		Expect(cm.Data.Clusterctl).To(Not(BeEmpty()), "clusterctl data not found in config-prime.yaml")
-		GinkgoWriter.Printf("Content of clusterctl.yaml:\n%s\n", cm.Data.Clusterctl)
+
+	It("Step 3: Parse config-prime.yaml and extract clusterctl providers", func() {
+		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/internal/controllers/clusterctl/config-prime.yaml", turtlesVersion)
+		body := fetchRaw(url)
+
+		var configMap struct {
+			Data struct {
+				Clusterctl string `yaml:"clusterctl.yaml"`
+			} `yaml:"data"`
+		}
+		Expect(yaml.Unmarshal(body, &configMap)).To(Succeed())
+
+		var inner struct {
+			Providers []struct {
+				Name string `yaml:"name"`
+				URL  string `yaml:"url"`
+				Type string `yaml:"type"`
+			} `yaml:"providers"`
+		}
+		Expect(yaml.Unmarshal([]byte(configMap.Data.Clusterctl), &inner)).To(Succeed())
+
+		// Extract version regex match and store in lookup map
+		re := regexp.MustCompile(`\/releases\/([^/]+)`)
+		for _, p := range inner.Providers {
+			if p.URL == "" {
+				continue
+			}
+			matches := re.FindStringSubmatch(p.URL)
+			if len(matches) == 2 {
+				versionMap[p.Name] = matches[1]
+
+				// Add base providers directly to our final target collection
+				airgapCollection = append(airgapCollection, AirgapComponent{
+					Name:    p.Name,
+					Type:    p.Type,
+					Version: matches[1],
+				})
+			}
+		}
 	})
 
+	It("Step 4: Resolve and map required container images", func() {
+		for _, img := range neededAirgapImageNames {
+			version := "unknown"
 
-	//fmt.Printf("Body content:\n%s\n", string(body))
+			switch {
+			case img == "rancher/turtles":
+				//version = versionMap["turtles"]
+				version = "doesnotexist"
 
-	rawVersion := strings.TrimSpace(os.Getenv("RANCHER_VERSION"))
-	if rawVersion == "" {
-		fmt.Println("❌ Missing RANCHER_VERSION environment variable")
-		os.Exit(1)
-	}
-		//fmt.Printf("Body content:\n%s\n", string(body))
-	// 1. Parse RANCHER_VERSION and strip optional prime channel prefix.
-	// Supported examples:
-	// - prime-rc/2.14.2-rc3
-	// - prime-alpha/2.14.2-alpha7
-	// - v2.14.2-rc3
-	// - 2.14.2-alpha7
-	re := regexp.MustCompile(`^(?:prime-(?:rc|alpha)[/:])?v?(2\.\d+\.\d+-(?:alpha|rc)\d+)$`)
-	match := re.FindStringSubmatch(rawVersion)
-	if len(match) < 2 {
-		fmt.Printf("⏩ Skipping '%s': unsupported RANCHER_VERSION (expected prime-rc|prime-alpha with 2.x.y-(rc|alpha)N).\n", rawVersion)
-		return
-	}
-	rancherVersion := "v" + strings.TrimPrefix(match[1], "v")
-	fmt.Printf("🔍 Targeted Rancher Prime Release: %s\n", rancherVersion)
+			case img == "rancher/rancher-turtles-providers":
+				version = versionMap["cluster-api"]
 
-	// 2. Fetch Rancher build.yaml to find turtlesVersion tag
-	buildURL := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/build.yaml", rancherVersion)
-	buildBytes, err := fetchURL(buildURL)
-	if err != nil {
-		fmt.Printf("❌ Failed to fetch build.yaml: %v\n", err)
-		os.Exit(1)
-	}
+			case img == "rancher/cluster-api-controller":
+				version = versionMap["cluster-api"]
 
-	var build RancherBuild
-	if err := yaml.Unmarshal(buildBytes, &build); err != nil {
-		fmt.Printf("❌ Failed to parse build.yaml: %v\n", err)
-		os.Exit(1)
-	}
+			case img == "rancher/azureserviceoperator":
+				// TODO Inherit Azure infrastructure version context directly is not the way
+				version = versionMap["azure"]
 
-	// 3. Normalize Turtles Tag (Strip everything before '+up')
-	// e.g., "109.0.2+up0.26.2-rc.3" -> "v0.26.2-rc.3"
-	parts := strings.Split(build.TurtlesVersion, "+up")
-	if len(parts) < 2 {
-		fmt.Printf("❌ Unexpected turtlesVersion structure: %s\n", build.TurtlesVersion)
-		os.Exit(1)
-	}
-	turtlesTag := "v" + strings.TrimPrefix(parts[1], "v")
-	fmt.Printf("🐢 Normalized Turtles Tag: %s\n", turtlesTag)
+			case strings.Contains(img, "cluster-api-addon-provider-fleet"):
+				version = versionMap["rancher-fleet"]
 
-	// 4. Fetch Turtles config-prime.yaml
-	turtlesURL := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/%s/internal/controllers/clusterctl/config-prime.yaml", turtlesTag)
-	turtlesBytes, err := fetchURL(turtlesURL)
-	if err != nil {
-		fmt.Printf("❌ Failed to fetch config-prime.yaml: %v\n", err)
-		os.Exit(1)
-	}
+			default:
+				// Exact keyword lookup for traditional provider components
+				for _, provider := range []string{"aws", "azure", "gcp", "vsphere", "rke2", "kubeadm"} {
+					if strings.Contains(img, provider) {
+						version = versionMap[provider]
+						break
+					}
+				}
+			}
 
-	var cm TurtlesConfigMap
-	if err := yaml.Unmarshal(turtlesBytes, &cm); err != nil {
-		fmt.Printf("❌ Failed to parse config-prime ConfigMap: %v\n", err)
-		os.Exit(1)
-	}
-
-	// 5. Extract inner provider definitions out of raw text block
-	var clusterctl ClusterctlConfig
-	if err := yaml.Unmarshal([]byte(cm.Data.Clusterctl), &clusterctl); err != nil {
-		fmt.Printf("❌ Failed to parse inner clusterctl configurations: %v\n", err)
-		os.Exit(1)
-	}
-
-	// 6. Match and display final provider tag matrix
-	fmt.Println("\n📋 Detected Airgap Component Matrix:")
-	versionRegex := regexp.MustCompile(`/releases/(v\d+\.\d+\.\d+[^/]*)/`)
-
-	for _, provider := range clusterctl.Providers {
-		verMatch := versionRegex.FindStringSubmatch(provider.URL)
-		if len(verMatch) >= 2 {
-			fmt.Printf("  • %-20s Tag: %s\n", provider.Name, verMatch[1])
-			// Pro-tip: Here is where you could drop standard OCI library
-			// elements to ping the registry directly if you expand the tool later.
+			airgapCollection = append(airgapCollection, AirgapComponent{
+				Name:    img,
+				Type:    "ContainerImage",
+				Version: version,
+			})
 		}
-	}
+	})
+
+	It("Step 5: Resolve and map required component manifests", func() {
+		for _, comp := range neededAirgapComponentNames {
+			version := "unknown"
+
+			switch {
+			case comp == "rancher/cluster-api-controller-components":
+				version = versionMap["cluster-api"]
+
+			case strings.Contains(comp, "cluster-api-addon-provider-fleet-components"):
+				version = versionMap["rancher-fleet"]
+
+			default:
+				// Exact keyword lookup for remaining provider files
+				for _, provider := range []string{"aws", "azure", "gcp", "vsphere", "rke2", "kubeadm"} {
+					if strings.Contains(comp, provider) {
+						version = versionMap[provider]
+						break
+					}
+				}
+			}
+
+			airgapCollection = append(airgapCollection, AirgapComponent{
+				Name:    comp,
+				Type:    "ComponentManifest",
+				Version: version,
+			})
+		}
+	})
+
+	It("Step 6: Output and verify final collection summary", func() {
+		Expect(airgapCollection).ToNot(BeEmpty(), "No assets processed into the airgap collection")
+
+		GinkgoWriter.Printf("\n📦 Summary: Collected %d Total Airgap Artifacts\n", len(airgapCollection))
+		for _, item := range airgapCollection {
+			GinkgoWriter.Printf("  [%s] %s -> %s\n", item.Type, item.Name, item.Version)
+		}
+	})
+
+   It("Step 7: Verify all required artifacts exist in the self-hosted OCI registry", func() {
+		registryHost := "registry.suse.com" // TODO load this from env/secret
+
+		for _, item := range airgapCollection {
+			if item.Type != "ContainerImage" && item.Type != "ComponentManifest" {
+				continue
+			}
+
+			if item.Version == "unknown" {
+				GinkgoWriter.Printf("⚠️  Skipping validation for %s (%s) due to unknown version\n", item.Name, item.Type)
+				continue
+			}
+
+			// Clean repository name to build a fully qualified image reference
+			repoName := strings.TrimPrefix(item.Name, registryHost+"/")
+			fullyQualifiedRef := fmt.Sprintf("%s/%s:%s", registryHost, repoName, item.Version)
+
+			// crane.Head automatically intercepts the 401, fetches the anonymous bearer token,
+			// appends the standard OCI Accept headers, and performs the lightweight HEAD check.
+			_, err := crane.Head(fullyQualifiedRef, crane.WithAuth(authn.Anonymous))
+
+			// Assert existence
+			Expect(err).ToNot(HaveOccurred(), "OCI Artifact [%s] -> %s NOT found on registry", item.Type, fullyQualifiedRef)
+
+			GinkgoWriter.Printf("✅ Verified OCI %s existence: %s\n", item.Type, fullyQualifiedRef)
+		}
+	})
 })
