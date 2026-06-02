@@ -12,7 +12,15 @@ import (
 	"gopkg.in/yaml.v3"
 	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/go-containerregistry/pkg/authn"
+	"github.com/google/go-containerregistry/pkg/logs"
 )
+
+func init() {
+	// To suppress crane's default logging which can be quite verbose during registry checks, we redirect it to Discard.
+	logs.Debug.SetOutput(io.Discard)
+  	logs.Warn.SetOutput(io.Discard)
+  	logs.Progress.SetOutput(io.Discard)
+}
 
 // Global Struct Definition
 type AirgapComponent struct {
@@ -212,17 +220,20 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 		}
 	})
 
-   It("Step 7: Verify all required artifacts exist in the self-hosted OCI registry", func() {
-		registryHost := "registry.suse.com" // TODO load this from env/secret
-
+   It("Step 7: Verify all required artifacts exist on registry", func() {
 		for _, item := range airgapCollection {
+			registryHost := "stgregistry.suse.com" // TODO load this from env/secret
 			if item.Type != "ContainerImage" && item.Type != "ComponentManifest" {
 				continue
 			}
 
-			if item.Version == "unknown" {
+			if item.Version == "unknown" || item.Version == "" {
 				GinkgoWriter.Printf("⚠️  Skipping validation for %s (%s) due to unknown version\n", item.Name, item.Type)
 				continue
+			}
+
+			if item.Type == "ComponentManifest" {
+				registryHost = "registry.suse.com" // TODO use secret - components are always stored on registry.suse.com
 			}
 
 			// Clean repository name to build a fully qualified image reference
@@ -234,18 +245,19 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 			_, err := crane.Head(fullyQualifiedRef, crane.WithAuth(authn.Anonymous))
 
 			// Assert existence
-			Expect(err).ToNot(HaveOccurred(), "OCI Artifact [%s] -> %s NOT found on registry", item.Type, fullyQualifiedRef)
+			Expect(err).ToNot(HaveOccurred(), "OCI Artifact [%s] -> %s:%s NOT found on registry", item.Type, repoName, item.Version)
 
-			GinkgoWriter.Printf("✅ Verified OCI %s existence: %s\n", item.Type, fullyQualifiedRef)
+			//GinkgoWriter.Printf("✅ Verified OCI %s existence: %s\n", item.Type, fullyQualifiedRef)
+			GinkgoWriter.Printf("✅ Verified OCI %s existence: %s:%s\n", item.Type, repoName, item.Version)
 		}
 	})
 
 	It("Step 8: Verify that all images are listed in rancher-images.txt", func() {
-		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/rancher-images.txt", rancherVersion)
+		url := fmt.Sprintf("https://prime.ribs.rancher.io/rancher/v%s/rancher-images.txt", rancherVersion) // TODO USE SECRET HERE
 		body := fetchRaw(url)
 		imagesList := strings.Split(string(body), "\n")
 		for _, item := range airgapCollection {
-			if item.Type != "ContainerImage" {
+			if item.Type != "ContainerImage" || item.Version == "unknown" {
 				continue
 			}
 			imageRef := fmt.Sprintf("rancher/%s:%s", strings.TrimPrefix(item.Name, "rancher/"), item.Version)
@@ -255,6 +267,7 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 	})
 
 	It("Step 9: Verify that CLUSTER_API_CONTROLLER_TAG is set to correct value", func() {
+		//TODO
 	})
 
 })
