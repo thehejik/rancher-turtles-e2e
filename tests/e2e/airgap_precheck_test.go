@@ -1,3 +1,17 @@
+/*
+Copyright © 2022 - 2026 SUSE LLC
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package e2e_test
 
 import (
@@ -7,19 +21,12 @@ import (
 	"regexp"
 	"strings"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/crane"
-	"github.com/google/go-containerregistry/pkg/logs"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"gopkg.in/yaml.v3"
 )
-
-func init() {
-	logs.Debug.SetOutput(io.Discard)
-	logs.Warn.SetOutput(io.Discard)
-	logs.Progress.SetOutput(io.Discard)
-}
 
 // Global variables holding ONLY raw versions discovered in the release
 var (
@@ -29,7 +36,7 @@ var (
 	vFleet        string // e.g., v0.14.1
 	vAws          string // e.g., v2.11.1
 	vAzure        string // e.g., v1.22.0
-	vAso		  string // e.g., v1.15.0 // TODO get it from https://github.com/rancher/turtles/blob/v0.26.2/charts/rancher-turtles-providers/values.yaml
+	vAso          string // e.g., v1.15.0 // TODO get it from https://github.com/rancher/turtles/blob/v0.26.2/charts/rancher-turtles-providers/values.yaml
 	vGcp          string // e.g., v1.11.1
 	vVsphere      string // e.g., v1.15.2
 	vRke2         string // e.g., v0.24.4
@@ -114,8 +121,9 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 				vAws = matches[1]
 			case "azure":
 				vAzure = matches[1]
+			// aso not present
 			case "aso":
-				vAso = matches[1] // Note: ASO doesn't follow the same naming convention, so we use "aso" as the case and map it to vAso
+				vAso = "unknown" // matches[1] // Note: ASO doesn't follow the same naming convention, so we use "aso" as the case and map it to vAso
 			case "gcp":
 				vGcp = matches[1]
 			case "vsphere":
@@ -164,7 +172,7 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 	It("Step 6: Verify Images are in rancher-images.txt", func() {
 		url := fmt.Sprintf("https://github.com/rancher/rancher/releases/download/v%s2/rancher-images.txt", rancherVersion)
 		if strings.Contains(rancherChannel, "prime") {
-		  url = fmt.Sprintf("https://prime.ribs.rancher.io/rancher/v%s/rancher-images.txt", rancherVersion)
+			url = fmt.Sprintf("https://prime.ribs.rancher.io/rancher/v%s/rancher-images.txt", rancherVersion)
 		}
 		txt := string(fetchBytes(url))
 
@@ -173,5 +181,21 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/charts/rancher-turtles-providers:%s", vTurtlesChart)))
 		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-controller:%s", vCoreCAPI)))
 		// ... repeat for the rest of your required image tags if desired
+	})
+	It("Step 7: Verify ASO version is documented in Turtles values.yaml", func() {
+		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/charts/rancher-turtles-providers/values.yaml", vTurtles)
+
+		var values struct {
+			Images struct {
+				InfrastructureAzure struct {
+					AzureServiceOperator struct {
+						Tag string `yaml:"tag"`
+					} `yaml:"azureServiceOperator"`
+				} `yaml:"infrastructureAzure"`
+			} `yaml:"images"`
+		}
+		Expect(yaml.Unmarshal(fetchBytes(url), &values)).To(Succeed())
+		vAso = values.Images.InfrastructureAzure.AzureServiceOperator.Tag
+		Expect(vAso).ToNot(BeEmpty(), "ASO tag in values.yaml is empty")
 	})
 })
