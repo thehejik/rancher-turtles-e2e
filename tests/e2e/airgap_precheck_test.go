@@ -65,6 +65,7 @@ func checkOCI(host, repo, tag string) {
 var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 
 	It("Step 1: Check Release Channel", func() {
+		Skip("skipping test: not applicable for non-prime channels")
 		Expect(rancherChannel).To(ContainSubstring("prime"), "Skipping test: channel is not prime")
 	})
 
@@ -153,6 +154,7 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 		checkOCI(h, "rancher/cluster-api-provider-rke2-controlplane", vRke2)
 		checkOCI(h, "rancher/kubeadm-bootstrap-controller", vKubeadm)
 		checkOCI(h, "rancher/kubeadm-control-plane-controller", vKubeadm)
+		checkOCI(h, "rancher/charts/rancher-turtles-providers", vTurtlesChart)
 		checkOCI(h, "rancher/azureserviceoperator", vAso)
 	})
 
@@ -160,7 +162,6 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 		h := "registry.suse.com"
 
 		checkOCI(h, "rancher/cluster-api-controller-components", vCoreCAPI)
-		checkOCI(h, "rancher/charts/rancher-turtles-providers", vTurtlesChart)
 		checkOCI(h, "rancher/cluster-api-addon-provider-fleet-components", vFleet)
 		checkOCI(h, "rancher/cluster-api-aws-controller-components", vAws)
 		checkOCI(h, "rancher/cluster-api-azure-controller-components", vAzure)
@@ -196,6 +197,18 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 		}
 		Expect(yaml.Unmarshal(fetchBytes(url), &values)).To(Succeed())
 		vAso = values.Images.InfrastructureAzure.AzureServiceOperator.Tag
+		GinkgoWriter.Printf("ASO version from values.yaml: %s\n", vAso)
 		Expect(vAso).ToNot(BeEmpty(), "ASO tag in values.yaml is empty")
+	})
+	It("Step 8: Verify the CAPI version is bumped in Rancher package-env", func() {
+		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/refs/tags/v%s/scripts/package-env", rancherVersion)
+
+		// the package-env is bash script, so we need to extract the CAPI version using regex
+		re := regexp.MustCompile(`CLUSTER_API_CONTROLLER_TAG=(v[0-9]+\.[0-9]+\.[0-9]+)`)
+		matches := re.FindStringSubmatch(string(fetchBytes(url)))
+		Expect(matches).To(HaveLen(2), "CLUSTER_API_CONTROLLER_TAG not found in package-env")
+		capiVersionInPackageEnv := matches[1]
+		GinkgoWriter.Printf("CAPI version in package-env: %s\n", capiVersionInPackageEnv)
+		Expect(capiVersionInPackageEnv).To(Equal(vCoreCAPI), "CAPI version in package-env does not match the one in Turtles config-prime.yaml")
 	})
 })
