@@ -43,6 +43,41 @@ var (
 	vKubeadm      string
 )
 
+type imageRef struct {
+	repo   string
+	verVar string
+}
+
+func allProviderImages() []imageRef {
+	return []imageRef{
+		{"rancher/turtles", vTurtles},
+		{"rancher/charts/rancher-turtles-providers", vTurtlesChart},
+		{"rancher/cluster-api-controller", vCoreCAPI},
+		{"rancher/cluster-api-addon-provider-fleet", vFleet},
+		{"rancher/cluster-api-aws-controller", vAws},
+		{"rancher/cluster-api-azure-controller", vAzure},
+		{"rancher/cluster-api-gcp-controller", vGcp},
+		{"rancher/cluster-api-vsphere-controller", vVsphere},
+		{"rancher/cluster-api-provider-rke2-bootstrap", vRke2},
+		{"rancher/cluster-api-provider-rke2-controlplane", vRke2},
+		{"rancher/kubeadm-bootstrap-controller", vKubeadm},
+		{"rancher/kubeadm-control-plane-controller", vKubeadm},
+		{"rancher/azureserviceoperator", vAso},
+	}
+}
+
+func componentManifestImages() []imageRef {
+	return []imageRef{
+		{"rancher/cluster-api-controller-components", vCoreCAPI},
+		{"rancher/cluster-api-addon-provider-fleet-components", vFleet},
+		{"rancher/cluster-api-aws-controller-components", vAws},
+		{"rancher/cluster-api-azure-controller-components", vAzure},
+		{"rancher/cluster-api-gcp-controller-components", vGcp},
+		{"rancher/cluster-api-provider-rke2-components", vRke2},
+		{"rancher/cluster-api-vsphere-controller-components", vVsphere},
+	}
+}
+
 func fetchBytes(url string) []byte {
 	resp, err := http.Get(url)
 	Expect(err).ToNot(HaveOccurred())
@@ -167,24 +202,7 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 
 		By("Verify all images exist in the OCI Registry", func() {
 			// List of (repo_name, version_variable)
-			images := []struct {
-				repo   string
-				verVar string
-			}{
-				{"rancher/turtles", vTurtles},
-				{"rancher/cluster-api-controller", vCoreCAPI},
-				{"rancher/cluster-api-addon-provider-fleet", vFleet},
-				{"rancher/cluster-api-aws-controller", vAws},
-				{"rancher/cluster-api-azure-controller", vAzure},
-				{"rancher/cluster-api-gcp-controller", vGcp},
-				{"rancher/cluster-api-vsphere-controller", vVsphere},
-				{"rancher/cluster-api-provider-rke2-bootstrap", vRke2},
-				{"rancher/cluster-api-provider-rke2-controlplane", vRke2},
-				{"rancher/kubeadm-bootstrap-controller", vKubeadm},
-				{"rancher/kubeadm-control-plane-controller", vKubeadm},
-				{"rancher/charts/rancher-turtles-providers", vTurtlesChart},
-				{"rancher/azureserviceoperator", vAso},
-			}
+			images := allProviderImages()
 
 			for _, i := range images {
 				checkOCI(host, i.repo, i.verVar)
@@ -194,18 +212,7 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 		By("Verify component manifest images exist in the registry", func() {
 			// TODO make the registry invisible
 			comp_host := "registry.suse.com" // Override or logic if needed
-			components := []struct {
-				repo   string
-				verVar string
-			}{
-				{"rancher/cluster-api-controller-components", vCoreCAPI},
-				{"rancher/cluster-api-addon-provider-fleet-components", vFleet},
-				{"rancher/cluster-api-aws-controller-components", vAws},
-				{"rancher/cluster-api-azure-controller-components", vAzure},
-				{"rancher/cluster-api-gcp-controller-components", vGcp},
-				{"rancher/cluster-api-provider-rke2-components", vRke2},
-				{"rancher/cluster-api-vsphere-controller-components", vVsphere},
-			}
+			components := componentManifestImages()
 
 			for _, c := range components {
 				checkOCI(comp_host, c.repo, c.verVar)
@@ -220,24 +227,7 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 			}
 			content := string(fetchBytes(url))
 
-			images := []struct {
-				repo   string
-				verVar string
-			}{
-				{"rancher/turtles", vTurtles},
-				{"rancher/charts/rancher-turtles-providers", vTurtlesChart},
-				{"rancher/cluster-api-controller", vCoreCAPI},
-				{"rancher/cluster-api-addon-provider-fleet", vFleet},
-				{"rancher/cluster-api-aws-controller", vAws},
-				{"rancher/cluster-api-azure-controller", vAzure},
-				{"rancher/cluster-api-gcp-controller", vGcp},
-				{"rancher/cluster-api-vsphere-controller", vVsphere},
-				{"rancher/cluster-api-provider-rke2-bootstrap", vRke2},
-				{"rancher/cluster-api-provider-rke2-controlplane", vRke2},
-				{"rancher/kubeadm-bootstrap-controller", vKubeadm},
-				{"rancher/kubeadm-control-plane-controller", vKubeadm},
-				{"rancher/azureserviceoperator", vAso},
-			}
+			images := allProviderImages()
 
 			for _, i := range images {
 				expected := fmt.Sprintf("%s:%s", i.repo, i.verVar)
