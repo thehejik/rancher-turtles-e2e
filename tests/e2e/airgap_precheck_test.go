@@ -28,22 +28,21 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Global variables holding ONLY raw versions discovered in the release
+// Global state for parsed versions
 var (
-	vTurtles      string // e.g., v0.26.2
-	vTurtlesChart string // e.g., 109.0.2_up0.26.2
-	vCoreCAPI     string // e.g., v1.12.7
-	vFleet        string // e.g., v0.14.1
-	vAws          string // e.g., v2.11.1
-	vAzure        string // e.g., v1.22.0
-	vAso          string // e.g., v1.15.0 // TODO get it from https://github.com/rancher/turtles/blob/v0.26.2/charts/rancher-turtles-providers/values.yaml
-	vGcp          string // e.g., v1.11.1
-	vVsphere      string // e.g., v1.15.2
-	vRke2         string // e.g., v0.24.4
-	vKubeadm      string // e.g., v1.12.7
+	vTurtles      string
+	vTurtlesChart string
+	vCoreCAPI     string
+	vFleet        string
+	vAws          string
+	vAzure        string
+	vAso          string
+	vGcp          string
+	vVsphere      string
+	vRke2         string
+	vKubeadm      string
 )
 
-// Simple HTTP helper to stop repeating error handling
 func fetchBytes(url string) []byte {
 	resp, err := http.Get(url)
 	Expect(err).ToNot(HaveOccurred())
@@ -53,171 +52,206 @@ func fetchBytes(url string) []byte {
 	return body
 }
 
-// Registry checker helper to stop repeating crane calls
 func checkOCI(host, repo, tag string) {
 	Expect(tag).ToNot(BeEmpty(), "Version for %s/%s is empty - cannot check OCI registry", host, repo)
+	tag = strings.TrimSpace(tag) // Safety check for "unknown" or empty
+	if tag == "" || tag == "unknown" {
+		GinkgoWriter.Printf("⚠️ Skipping OCI check for %s/%s (Tag: %s)\n", host, repo, tag)
+	}
 	ref := fmt.Sprintf("%s/%s:%s", host, repo, tag)
 	_, err := crane.Head(ref, crane.WithAuth(authn.Anonymous))
 	Expect(err).ToNot(HaveOccurred(), "Artifact not found: %s", ref)
 	GinkgoWriter.Printf("✅ Verified OCI: %s\n", ref)
 }
 
+func getAsoVersion() string {
+	// ASO doesn't have a standard release pattern, so we may need to parse it differently
+	asoURL := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/charts/rancher-turtles-providers/values.yaml", vTurtles)
+	var val struct {
+		Images struct {
+			InfrastructureAzure struct {
+				AzureServiceOperator struct {
+					Tag string `yaml:"tag"`
+				} `yaml:"azureServiceOperator"`
+			} `yaml:"infrastructureAzure"`
+		} `yaml:"images"`
+	}
+	Expect(yaml.Unmarshal(fetchBytes(asoURL), &val)).To(Succeed())
+	vAso = val.Images.InfrastructureAzure.AzureServiceOperator.Tag
+	GinkgoWriter.Printf("ASO version from values.yaml: %s\n", vAso)
+	return vAso
+}
+
 var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
-
-	It("Step 1: Check Release Channel", func() {
-		Skip("skipping test: not applicable for non-prime channels")
-		Expect(rancherChannel).To(ContainSubstring("prime"), "Skipping test: channel is not prime")
+	BeforeEach(func() {
+		// Test is suitable for Prime and rancher >= 2.14
+		if !strings.Contains(rancherChannel, "prime") || isRancherManagerVersion("<2.14") {
+			Skip(fmt.Sprintf("Skipping airgap precheck: requires prime channel and Rancher >= 2.14 (channel=%q, version=%s)", rancherChannel, rancherVersion))
+		}
 	})
 
-	It("Step 2: Parse Turtles Versions from Rancher build.yaml", func() {
-		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/build.yaml", rancherVersion)
-
-		var build struct {
-			TurtlesVersion string `yaml:"turtlesVersion"`
-		}
-		Expect(yaml.Unmarshal(fetchBytes(url), &build)).To(Succeed())
-
-		vTurtlesChart = strings.ReplaceAll(build.TurtlesVersion, "+", "_")
-
-		parts := strings.Split(build.TurtlesVersion, "+up")
-		Expect(parts).To(HaveLen(2))
-		vTurtles = "v" + strings.TrimPrefix(parts[1], "v")
-	})
-
-	It("Step 3: Parse Provider Versions from Turtles config-prime.yaml", func() {
-		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/internal/controllers/clusterctl/config-prime.yaml", vTurtles)
-
-		var configMap struct {
-			Data struct {
-				Clusterctl string `yaml:"clusterctl.yaml"`
-			} `yaml:"data"`
-		}
-		Expect(yaml.Unmarshal(fetchBytes(url), &configMap)).To(Succeed())
-
-		var inner struct {
-			Providers []struct {
-				Name string `yaml:"name"`
-				URL  string `yaml:"url"`
-			} `yaml:"providers"`
-		}
-		Expect(yaml.Unmarshal([]byte(configMap.Data.Clusterctl), &inner)).To(Succeed())
-
-		re := regexp.MustCompile(`\/releases\/([^/]+)`)
-		for _, p := range inner.Providers {
-			if p.URL == "" {
-				continue
+	It("Phase 1: Data gathering", func() {
+		By("Fetch and Parse Versions from Rancher & Turtles Sources", func() {
+			// 1. Parse Rancher build.yaml
+			buildURL := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/v%s/build.yaml", rancherVersion)
+			var build struct {
+				TurtlesVersion string `yaml:"turtlesVersion"`
 			}
-			matches := re.FindStringSubmatch(p.URL)
-			if len(matches) != 2 {
-				continue
+			Expect(yaml.Unmarshal(fetchBytes(buildURL), &build)).To(Succeed())
+			GinkgoWriter.Printf("Turtles version from build.yaml: %s\n", build.TurtlesVersion)
+			// Convert to OCI-compatible format (replace '+' with '_')
+			vTurtlesChart = strings.ReplaceAll(build.TurtlesVersion, "+", "_")
+			parts := strings.Split(build.TurtlesVersion, "+up")
+			Expect(parts).To(HaveLen(2))
+			vTurtles = "v" + strings.TrimPrefix(parts[1], "v")
+			GinkgoWriter.Printf("Trimmed Turtles version: %s\n", vTurtles)
+
+			// 2. Parse Turtles config-prime.yaml
+			turtlesURL := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/internal/controllers/clusterctl/config-prime.yaml", vTurtles)
+			var configMap struct {
+				Data struct {
+					Clusterctl string `yaml:"clusterctl.yaml"`
+				} `yaml:"data"`
+			}
+			Expect(yaml.Unmarshal(fetchBytes(turtlesURL), &configMap)).To(Succeed())
+
+			var inner struct {
+				Providers []struct {
+					Name string `yaml:"name"`
+					URL  string `yaml:"url"`
+				} `yaml:"providers"`
+			}
+			Expect(yaml.Unmarshal([]byte(configMap.Data.Clusterctl), &inner)).To(Succeed())
+
+			re := regexp.MustCompile(`\/releases\/([^/]+)`)
+			for _, p := range inner.Providers {
+				if p.URL == "" {
+					continue
+				}
+				matches := re.FindStringSubmatch(p.URL)
+				if len(matches) != 2 {
+					continue
+				}
+
+				switch p.Name {
+				case "cluster-api":
+					vCoreCAPI = matches[1]
+				case "rancher-fleet":
+					vFleet = matches[1]
+				case "aws":
+					vAws = matches[1]
+				case "azure":
+					vAzure = matches[1]
+				case "gcp":
+					vGcp = matches[1]
+				case "vsphere":
+					vVsphere = matches[1]
+				case "rke2":
+					vRke2 = matches[1]
+				case "kubeadm":
+					vKubeadm = matches[1]
+				}
 			}
 
-			// Directly map specific variables without loops
-			switch p.Name {
-			case "cluster-api":
-				vCoreCAPI = matches[1]
-			case "rancher-fleet":
-				vFleet = matches[1]
-			case "aws":
-				vAws = matches[1]
-			case "azure":
-				vAzure = matches[1]
-			// aso not present
-			case "aso":
-				vAso = "unknown" // matches[1] // Note: ASO doesn't follow the same naming convention, so we use "aso" as the case and map it to vAso
-			case "gcp":
-				vGcp = matches[1]
-			case "vsphere":
-				vVsphere = matches[1]
-			case "rke2":
-				vRke2 = matches[1]
-			case "kubeadm":
-				vKubeadm = matches[1]
+			// vAso is not listed in config-prime.yaml, will be fetched separately
+			vAso = getAsoVersion()
+
+		})
+	})
+	It("Phase 2: Validation", func() {
+		var host string
+		//if strings.Contains(rancherChannel, "prime") {
+		// TODO make the registry invisible
+		host = "stgregistry.suse.com"
+		//}
+
+		By("Verify all images exist in the OCI Registry", func() {
+			// List of (repo_name, version_variable)
+			images := []struct {
+				repo   string
+				verVar string
+			}{
+				{"rancher/turtles", vTurtles},
+				{"rancher/cluster-api-controller", vCoreCAPI},
+				{"rancher/cluster-api-addon-provider-fleet", vFleet},
+				{"rancher/cluster-api-aws-controller", vAws},
+				{"rancher/cluster-api-azure-controller", vAzure},
+				{"rancher/cluster-api-gcp-controller", vGcp},
+				{"rancher/cluster-api-vsphere-controller", vVsphere},
+				{"rancher/cluster-api-provider-rke2-bootstrap", vRke2},
+				{"rancher/cluster-api-provider-rke2-controlplane", vRke2},
+				{"rancher/kubeadm-bootstrap-controller", vKubeadm},
+				{"rancher/kubeadm-control-plane-controller", vKubeadm},
+				{"rancher/charts/rancher-turtles-providers", vTurtlesChart},
+				{"rancher/azureserviceoperator", vAso},
 			}
-		}
-	})
 
-	It("Step 4: Verify Container Images on Registry", func() {
-		h := ""
-		if strings.Contains(rancherChannel, "prime") {
-			h = "stgregistry.suse.com"
-		}
+			for _, i := range images {
+				checkOCI(host, i.repo, i.verVar)
+			}
+		})
 
-		checkOCI(h, "rancher/turtles", vTurtles)
-		checkOCI(h, "rancher/cluster-api-controller", vCoreCAPI)
-		checkOCI(h, "rancher/cluster-api-addon-provider-fleet", vFleet)
-		checkOCI(h, "rancher/cluster-api-aws-controller", vAws)
-		checkOCI(h, "rancher/cluster-api-azure-controller", vAzure)
-		checkOCI(h, "rancher/cluster-api-gcp-controller", vGcp)
-		checkOCI(h, "rancher/cluster-api-vsphere-controller", vVsphere)
-		checkOCI(h, "rancher/cluster-api-provider-rke2-bootstrap", vRke2)
-		checkOCI(h, "rancher/cluster-api-provider-rke2-controlplane", vRke2)
-		checkOCI(h, "rancher/kubeadm-bootstrap-controller", vKubeadm)
-		checkOCI(h, "rancher/kubeadm-control-plane-controller", vKubeadm)
-		checkOCI(h, "rancher/charts/rancher-turtles-providers", vTurtlesChart)
-		checkOCI(h, "rancher/azureserviceoperator", vAso)
-	})
+		By("Verify component manifest images exist in the registry", func() {
+			// TODO make the registry invisible
+			comp_host := "registry.suse.com" // Override or logic if needed
+			components := []struct {
+				repo   string
+				verVar string
+			}{
+				{"rancher/cluster-api-controller-components", vCoreCAPI},
+				{"rancher/cluster-api-addon-provider-fleet-components", vFleet},
+				{"rancher/cluster-api-aws-controller-components", vAws},
+				{"rancher/cluster-api-azure-controller-components", vAzure},
+				{"rancher/cluster-api-gcp-controller-components", vGcp},
+				{"rancher/cluster-api-provider-rke2-components", vRke2},
+				{"rancher/cluster-api-vsphere-controller-components", vVsphere},
+			}
 
-	It("Step 5: Verify Component Manifests", func() {
-		h := "registry.suse.com"
+			for _, c := range components {
+				checkOCI(comp_host, c.repo, c.verVar)
+			}
+		})
 
-		checkOCI(h, "rancher/cluster-api-controller-components", vCoreCAPI)
-		checkOCI(h, "rancher/cluster-api-addon-provider-fleet-components", vFleet)
-		checkOCI(h, "rancher/cluster-api-aws-controller-components", vAws)
-		checkOCI(h, "rancher/cluster-api-azure-controller-components", vAzure)
-		checkOCI(h, "rancher/cluster-api-gcp-controller-components", vGcp)
-		checkOCI(h, "rancher/cluster-api-provider-rke2-components", vRke2)
-		checkOCI(h, "rancher/cluster-api-vsphere-controller-components", vVsphere)
-	})
+		By("Verify images are listed in rancher-images.txt", func() {
+			// TODO make the URL invisible
+			url := fmt.Sprintf("https://github.com/rancher/rancher/releases/download/v%s2/rancher-images.txt", rancherVersion)
+			if strings.Contains(rancherChannel, "prime") {
+				url = fmt.Sprintf("https://prime.ribs.rancher.io/rancher/v%s/rancher-images.txt", rancherVersion)
+			}
+			content := string(fetchBytes(url))
 
-	It("Step 6: Verify Images are in rancher-images.txt", func() {
-		// TODO check only on Prime
-		url := fmt.Sprintf("https://github.com/rancher/rancher/releases/download/v%s2/rancher-images.txt", rancherVersion)
-		if strings.Contains(rancherChannel, "prime") {
-			url = fmt.Sprintf("https://prime.ribs.rancher.io/rancher/v%s/rancher-images.txt", rancherVersion)
-		}
-		txt := string(fetchBytes(url))
-		// Construct and check direct strings one by one
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/turtles:%s", vTurtles)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/charts/rancher-turtles-providers:%s", vTurtlesChart)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-controller:%s", vCoreCAPI)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-addon-provider-fleet:%s", vFleet)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-aws-controller:%s", vAws)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-azure-controller:%s", vAzure)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-gcp-controller:%s", vGcp)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-vsphere-controller:%s", vVsphere)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-provider-rke2-bootstrap:%s", vRke2)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-provider-rke2-controlplane:%s", vRke2)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/kubeadm-bootstrap-controller:%s", vKubeadm)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/kubeadm-control-plane-controller:%s", vKubeadm)))
-		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/azureserviceoperator:%s", vAso)))
-	})
-	It("Step 7: Verify ASO version is bumped in Turtles values.yaml", func() {
-		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/charts/rancher-turtles-providers/values.yaml", vTurtles)
+			images := []struct {
+				repo   string
+				verVar string
+			}{
+				{"rancher/turtles", vTurtles},
+				{"rancher/charts/rancher-turtles-providers", vTurtlesChart},
+				{"rancher/cluster-api-controller", vCoreCAPI},
+				{"rancher/cluster-api-addon-provider-fleet", vFleet},
+				{"rancher/cluster-api-aws-controller", vAws},
+				{"rancher/cluster-api-azure-controller", vAzure},
+				{"rancher/cluster-api-gcp-controller", vGcp},
+				{"rancher/cluster-api-vsphere-controller", vVsphere},
+				{"rancher/cluster-api-provider-rke2-bootstrap", vRke2},
+				{"rancher/cluster-api-provider-rke2-controlplane", vRke2},
+				{"rancher/kubeadm-bootstrap-controller", vKubeadm},
+				{"rancher/kubeadm-control-plane-controller", vKubeadm},
+				{"rancher/azureserviceoperator", vAso},
+			}
 
-		var values struct {
-			Images struct {
-				InfrastructureAzure struct {
-					AzureServiceOperator struct {
-						Tag string `yaml:"tag"`
-					} `yaml:"azureServiceOperator"`
-				} `yaml:"infrastructureAzure"`
-			} `yaml:"images"`
-		}
-		Expect(yaml.Unmarshal(fetchBytes(url), &values)).To(Succeed())
-		vAso = values.Images.InfrastructureAzure.AzureServiceOperator.Tag
-		GinkgoWriter.Printf("ASO version from values.yaml: %s\n", vAso)
-		Expect(vAso).ToNot(BeEmpty(), "ASO tag in values.yaml is empty")
-	})
-	It("Step 8: Verify the CAPI version is bumped in Rancher package-env", func() {
-		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/refs/tags/v%s/scripts/package-env", rancherVersion)
+			for _, i := range images {
+				expected := fmt.Sprintf("%s:%s", i.repo, i.verVar)
+				Expect(content).To(ContainSubstring(expected), "Missing %s in rancher-images.txt", expected)
+			}
+		})
 
-		// the package-env is bash script, so we need to extract the CAPI version using regex
-		re := regexp.MustCompile(`CLUSTER_API_CONTROLLER_TAG=(v[0-9]+\.[0-9]+\.[0-9]+)`)
-		matches := re.FindStringSubmatch(string(fetchBytes(url)))
-		Expect(matches).To(HaveLen(2), "CLUSTER_API_CONTROLLER_TAG not found in package-env")
-		capiVersionInPackageEnv := matches[1]
-		GinkgoWriter.Printf("CAPI version in package-env: %s\n", capiVersionInPackageEnv)
-		Expect(capiVersionInPackageEnv).To(Equal(vCoreCAPI), "CAPI version in package-env does not match the one in Turtles config-prime.yaml")
+		By("Verify CAPI version match in package-env", func() {
+			url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/rancher/refs/tags/v%s/scripts/package-env", rancherVersion)
+			re := regexp.MustCompile(`CLUSTER_API_CONTROLLER_TAG=(v[0-9]+\.[0-9]+\.[0-9]+)`)
+			matches := re.FindStringSubmatch(string(fetchBytes(url)))
+			Expect(matches).To(HaveLen(2), "CLUSTER_API_CONTROLLER_TAG not found in package-env")
+			GinkgoWriter.Printf("CAPI version in package-env: %s\n", matches[1])
+			Expect(matches[1]).To(Equal(vCoreCAPI), "Mismatch between config-prime.yaml and package-env")
+		})
 	})
 })
