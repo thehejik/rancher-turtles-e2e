@@ -171,19 +171,28 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 	})
 
 	It("Step 6: Verify Images are in rancher-images.txt", func() {
+		// TODO check only on Prime
 		url := fmt.Sprintf("https://github.com/rancher/rancher/releases/download/v%s2/rancher-images.txt", rancherVersion)
 		if strings.Contains(rancherChannel, "prime") {
 			url = fmt.Sprintf("https://prime.ribs.rancher.io/rancher/v%s/rancher-images.txt", rancherVersion)
 		}
 		txt := string(fetchBytes(url))
-
 		// Construct and check direct strings one by one
 		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/turtles:%s", vTurtles)))
 		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/charts/rancher-turtles-providers:%s", vTurtlesChart)))
 		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-controller:%s", vCoreCAPI)))
-		// ... repeat for the rest of your required image tags if desired
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-addon-provider-fleet:%s", vFleet)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-aws-controller:%s", vAws)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-azure-controller:%s", vAzure)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-gcp-controller:%s", vGcp)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-vsphere-controller:%s", vVsphere)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-provider-rke2-bootstrap:%s", vRke2)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/cluster-api-provider-rke2-controlplane:%s", vRke2)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/kubeadm-bootstrap-controller:%s", vKubeadm)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/kubeadm-control-plane-controller:%s", vKubeadm)))
+		Expect(txt).To(ContainSubstring(fmt.Sprintf("rancher/azureserviceoperator:%s", vAso)))
 	})
-	It("Step 7: Verify ASO version is documented in Turtles values.yaml", func() {
+	It("Step 7: Verify ASO version is bumped in Turtles values.yaml", func() {
 		url := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/charts/rancher-turtles-providers/values.yaml", vTurtles)
 
 		var values struct {
