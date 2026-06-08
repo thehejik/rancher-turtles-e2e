@@ -51,7 +51,7 @@ type imageRef struct {
 func allProviderImages() []imageRef {
 	return []imageRef{
 		{"rancher/turtles", vTurtles},
-		{"rancher/charts/rancher-turtles-providers", vTurtlesChart},
+		{"rancher/charts/rancher-turtles-providers", vTurtlesChart}, // This is actually chart repo
 		{"rancher/cluster-api-controller", vCoreCAPI},
 		{"rancher/cluster-api-addon-provider-fleet", vFleet},
 		{"rancher/cluster-api-aws-controller", vAws},
@@ -68,7 +68,7 @@ func allProviderImages() []imageRef {
 
 func componentManifestImages() []imageRef {
 	return []imageRef{
-		{"rancher/cluster-api-controller-components", vCoreCAPI},
+		{"rancher/cluster-api-controller-components", vCoreCAPI}, // This also contains capd and kubeadm manifests
 		{"rancher/cluster-api-addon-provider-fleet-components", vFleet},
 		{"rancher/cluster-api-aws-controller-components", vAws},
 		{"rancher/cluster-api-azure-controller-components", vAzure},
@@ -89,18 +89,15 @@ func fetchBytes(url string) []byte {
 
 func checkOCI(host, repo, tag string) {
 	Expect(tag).ToNot(BeEmpty(), "Version for %s/%s is empty - cannot check OCI registry", host, repo)
-	tag = strings.TrimSpace(tag) // Safety check for "unknown" or empty
-	if tag == "" || tag == "unknown" {
-		GinkgoWriter.Printf("⚠️ Skipping OCI check for %s/%s (Tag: %s)\n", host, repo, tag)
-	}
+	// tag = strings.TrimSpace(tag)
 	ref := fmt.Sprintf("%s/%s:%s", host, repo, tag)
 	_, err := crane.Head(ref, crane.WithAuth(authn.Anonymous))
-	Expect(err).ToNot(HaveOccurred(), "Artifact not found: %s", ref)
-	GinkgoWriter.Printf("✅ Verified OCI: %s\n", ref)
+	Expect(err).ToNot(HaveOccurred(), "Artifact not found: %s:%s", repo, tag)
+	GinkgoWriter.Printf("✅ Verified OCI: %s:%s\n", repo, tag)
 }
 
 func getAsoVersion() string {
-	// ASO doesn't have a standard release pattern, so we may need to parse it differently
+	// ASO doesn't have a standard release pattern, so we need to parse it differently from providers values.yaml
 	asoURL := fmt.Sprintf("https://raw.githubusercontent.com/rancher/turtles/refs/tags/%s/charts/rancher-turtles-providers/values.yaml", vTurtles)
 	var val struct {
 		Images struct {
@@ -119,7 +116,8 @@ func getAsoVersion() string {
 
 var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 	BeforeEach(func() {
-		// Test is suitable for Prime and rancher >= 2.14
+		// Test is suitable for Prime and rancher >= 2.14 only
+		// Althrough it can be expanded to support community channels where we need basically check only rancher/cluster-api-controller (also in env) and rancher/turtles images
 		if !strings.Contains(rancherChannel, "prime") || isRancherManagerVersion("<2.14") {
 			Skip(fmt.Sprintf("Skipping airgap precheck: requires prime channel and Rancher >= 2.14 (channel=%q, version=%s)", rancherChannel, rancherVersion))
 		}
@@ -188,20 +186,17 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 				}
 			}
 
-			// vAso is not listed in config-prime.yaml, will be fetched separately
+			// vAso is not listed in config-prime.yaml, will be fetched separately from providers values.yaml
 			vAso = getAsoVersion()
 
 		})
 	})
 	It("Phase 2: Validation", func() {
-		var host string
-		//if strings.Contains(rancherChannel, "prime") {
-		// TODO make the registry invisible
-		host = "stgregistry.suse.com"
-		//}
-
-		By("Verify all images exist in the OCI Registry", func() {
-			// List of (repo_name, version_variable)
+		By("Verify images exist in the registry", func() {
+			host := primeRegistry
+			if strings.Contains(rancherVersion, "-rc") || strings.Contains(rancherVersion, "-alpha") {
+				host = stgPrimeRegistry
+			}
 			images := allProviderImages()
 
 			for _, i := range images {
@@ -209,22 +204,18 @@ var _ = Describe("E2E - Airgap Precheck Tests", Label("airgap"), func() {
 			}
 		})
 
-		By("Verify component manifest images exist in the registry", func() {
-			// TODO make the registry invisible
-			comp_host := "registry.suse.com" // Override or logic if needed
+		By("Verify component manifests exist in the registry", func() {
+			// Components are always stored on prime registry, even for rc/alpha releases
+			host := primeRegistry
 			components := componentManifestImages()
 
 			for _, c := range components {
-				checkOCI(comp_host, c.repo, c.verVar)
+				checkOCI(host, c.repo, c.verVar)
 			}
 		})
 
 		By("Verify images are listed in rancher-images.txt", func() {
-			// TODO make the URL invisible
-			url := fmt.Sprintf("https://github.com/rancher/rancher/releases/download/v%s2/rancher-images.txt", rancherVersion)
-			if strings.Contains(rancherChannel, "prime") {
-				url = fmt.Sprintf("https://prime.ribs.rancher.io/rancher/v%s/rancher-images.txt", rancherVersion)
-			}
+			url := fmt.Sprintf("%s/rancher/v%s/rancher-images.txt", primeArtifactsURL, rancherVersion)
 			content := string(fetchBytes(url))
 
 			images := allProviderImages()

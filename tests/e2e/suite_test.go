@@ -37,6 +37,9 @@ var (
 	rancherHeadVersion  string
 	rancherLogCollector string
 	rancherVersion      string
+	primeRegistry       string
+	stgPrimeRegistry    string
+	primeArtifactsURL   string
 	turtlesDevChart     bool
 	isUpgradeTest       bool
 )
@@ -115,6 +118,9 @@ var _ = BeforeSuite(func() {
 	rancherVersion = os.Getenv("RANCHER_VERSION")
 	turtlesDevChart = os.Getenv("TURTLES_DEV_CHART") == "true"
 	isUpgradeTest = strings.Contains(os.Getenv("GREPTAGS"), "upgrade")
+	primeRegistry = os.Getenv("PRIME_REGISTRY")
+	stgPrimeRegistry = os.Getenv("STG_PRIME_REGISTRY")
+	primeArtifactsURL = os.Getenv("PRIME_ARTIFACTS_URL")
 
 	// Extract Rancher Manager channel/version to install
 	if rancherVersion != "" {
