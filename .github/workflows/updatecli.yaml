@@ -14,10 +14,10 @@ jobs:
     runs-on: "ubuntu-latest"
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install Updatecli in the runner
-        uses: updatecli/updatecli-action@7aab164eed4ee3bb279611182ba1e62a3a867640 # v3.1.1
+        uses: updatecli/updatecli-action@5bda7da77bf4d181bce5f807d73d832b62062acf # v3.3.0
 
       - name: Apply
         run: "updatecli pipeline apply --config .github/updatecli/updatecli.d/ --values .github/updatecli/values.yaml"
